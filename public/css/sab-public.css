@@ -1,0 +1,365 @@
+/**
+ * Smart Address Book for WooCommerce - Public Stylesheet
+ */
+
+:root {
+	--sab-primary: #007185;
+	--sab-primary-hover: #005a6a;
+	--sab-accent: #e67a00;
+	--sab-success: #067d62;
+	--sab-border: #d5d9d9;
+	--sab-card-bg: #ffffff;
+	--sab-card-radius: 8px;
+	--sab-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
+	--sab-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Wrapper */
+.sab-address-book-wrapper {
+	margin: 20px 0;
+	font-family: inherit;
+}
+
+/* Header Bar */
+.sab-header-bar {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 15px;
+	margin-bottom: 25px;
+	padding-bottom: 15px;
+	border-bottom: 1px solid var(--sab-border);
+}
+
+.sab-header-title h3 {
+	margin: 0 0 5px 0;
+	font-size: 24px;
+	color: #111;
+}
+
+.sab-subtitle {
+	margin: 0;
+	color: #565959;
+	font-size: 14px;
+}
+
+.sab-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.sab-csv-actions {
+	display: flex;
+	gap: 6px;
+}
+
+.sab-header-actions .button {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 8px 14px;
+	font-size: 13px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+/* Search Box */
+.sab-search-wrapper {
+	position: relative;
+	margin-bottom: 25px;
+	max-width: 500px;
+}
+
+.sab-search-input {
+	width: 100%;
+	padding: 10px 12px 10px 38px !important;
+	border: 1px solid var(--sab-border) !important;
+	border-radius: 6px !important;
+	font-size: 14px !important;
+	transition: border-color 0.2s, box-shadow 0.2s;
+	background: #fff;
+}
+
+.sab-search-input:focus {
+	border-color: var(--sab-primary) !important;
+	box-shadow: 0 0 0 3px rgba(0, 113, 133, 0.15) !important;
+	outline: none;
+}
+
+.sab-search-icon {
+	position: absolute;
+	left: 10px;
+	top: 50%;
+	transform: translateY(-50%);
+	color: #767676;
+	pointer-events: none;
+}
+
+/* Section */
+.sab-section {
+	margin-bottom: 35px;
+}
+
+.sab-section-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 15px;
+}
+
+.sab-section-header h4 {
+	margin: 0;
+	font-size: 18px;
+	color: #222;
+}
+
+.sab-count-badge {
+	display: inline-block;
+	background: #e7e9ec;
+	color: #333;
+	font-size: 12px;
+	font-weight: 600;
+	padding: 2px 8px;
+	border-radius: 12px;
+}
+
+/* Address Grid */
+.sab-address-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 20px;
+}
+
+/* Address Card */
+.sab-card {
+	background: var(--sab-card-bg);
+	border: 1px solid var(--sab-border);
+	border-radius: var(--sab-card-radius);
+	padding: 18px;
+	box-shadow: var(--sab-shadow);
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+	position: relative;
+}
+
+.sab-card:hover {
+	transform: translateY(-2px);
+	box-shadow: var(--sab-shadow-hover);
+}
+
+.sab-card.sab-is-default {
+	border: 2px solid var(--sab-primary);
+	background: #fbfdfd;
+}
+
+/* Card Top */
+.sab-card-top {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	margin-bottom: 12px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid #f0f2f2;
+}
+
+.sab-card-nickname {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	color: #111;
+	font-size: 15px;
+}
+
+.sab-badge {
+	font-size: 11px;
+	font-weight: 700;
+	padding: 3px 8px;
+	border-radius: 4px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.sab-default-badge {
+	background: #e6f4f2;
+	color: var(--sab-success);
+	border: 1px solid #b7e3dc;
+}
+
+/* Card Body */
+.sab-card-body {
+	flex-grow: 1;
+	margin-bottom: 15px;
+	font-size: 14px;
+	line-height: 1.5;
+	color: #333;
+}
+
+.sab-formatted-address {
+	margin-bottom: 10px;
+}
+
+.sab-card-meta {
+	margin: 4px 0 0 0;
+	font-size: 13px;
+	color: #555;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.sab-card-meta .dashicons {
+	font-size: 15px;
+	width: 15px;
+	height: 15px;
+	color: #767676;
+}
+
+/* Card Actions */
+.sab-card-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding-top: 12px;
+	border-top: 1px solid #f0f2f2;
+}
+
+.sab-card-actions .button {
+	font-size: 12px;
+	padding: 4px 10px;
+	border-radius: 4px;
+	background: #fff;
+	border: 1px solid var(--sab-border);
+	color: #111;
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.sab-card-actions .button:hover {
+	background: #f7fafa;
+	border-color: #a6b0b0;
+}
+
+.sab-card-actions .sab-action-delete {
+	color: #c40000;
+}
+
+.sab-card-actions .sab-action-delete:hover {
+	background: #fdf2f2;
+	border-color: #f5c2c2;
+}
+
+/* Empty State */
+.sab-empty-state {
+	grid-column: 1 / -1;
+	padding: 30px;
+	text-align: center;
+	background: #fafafa;
+	border: 1px dashed var(--sab-border);
+	border-radius: var(--sab-card-radius);
+}
+
+.sab-empty-state p {
+	margin-bottom: 15px;
+	color: #666;
+}
+
+/* Form Styles */
+.sab-address-form-wrapper {
+	margin: 20px 0;
+}
+
+.sab-form-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--sab-border);
+}
+
+.sab-form-header h3 {
+	margin: 0;
+}
+
+.sab-address-form .form-row {
+	margin-bottom: 15px;
+}
+
+.sab-cancel-btn {
+	margin-left: 10px;
+}
+
+/* Checkout Selector */
+.sab-checkout-selector-container {
+	margin-bottom: 20px;
+	padding: 14px 16px;
+	background: #f7f9fa;
+	border: 1px solid var(--sab-border);
+	border-radius: 6px;
+}
+
+.sab-checkout-selector-container label {
+	margin-bottom: 6px;
+	display: block;
+	color: #222;
+}
+
+.sab-checkout-address-dropdown {
+	width: 100% !important;
+	padding: 8px 12px !important;
+	border: 1px solid var(--sab-border) !important;
+	border-radius: 4px !important;
+	background: #fff !important;
+	font-size: 14px !important;
+}
+
+.sab-checkout-save-wrapper {
+	margin: 15px 0;
+	padding: 10px 14px;
+	background: #fafafa;
+	border: 1px dashed var(--sab-border);
+	border-radius: 4px;
+}
+
+/* Notices */
+.sab-notice {
+	padding: 10px 15px;
+	margin-bottom: 15px;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.sab-notice-success {
+	background: #e6f4f2;
+	color: #067d62;
+	border: 1px solid #b7e3dc;
+}
+
+.sab-notice-error {
+	background: #fdf2f2;
+	color: #c40000;
+	border: 1px solid #f5c2c2;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+	.sab-header-bar {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.sab-header-actions {
+		width: 100%;
+		justify-content: space-between;
+	}
+
+	.sab-address-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
