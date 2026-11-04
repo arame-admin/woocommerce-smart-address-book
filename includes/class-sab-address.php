@@ -46,7 +46,7 @@ class SAB_Address {
 				),
 				'email'        => array(
 					'label'    => __( 'Email Address', 'smart-address-book' ),
-					'required' => false,
+					'required' => true,
 					'type'     => 'email',
 				),
 				'country'      => array(
@@ -179,8 +179,13 @@ class SAB_Address {
 		}
 
 		// 6. Email validation
-		$email = sanitize_email( $data['email'] ?? '' );
-		if ( ! empty( $data['email'] ) && ! is_email( $email ) ) {
+		$raw_email = trim( (string) ( $data['email'] ?? '' ) );
+		$email     = sanitize_email( $raw_email );
+		if ( empty( $raw_email ) ) {
+			if ( ! $errors->get_error_message( 'empty_email' ) ) {
+				$errors->add( 'empty_email', __( 'Email Address is a required field.', 'smart-address-book' ) );
+			}
+		} elseif ( ! is_email( $email ) ) {
 			$errors->add( 'invalid_email', __( 'Please enter a valid email address.', 'smart-address-book' ) );
 		}
 

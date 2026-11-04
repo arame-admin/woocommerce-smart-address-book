@@ -287,6 +287,157 @@
 			updateStateField(country, '');
 		});
 
+		/**
+		 * 7. Address Form Validation & Field Error Handling
+		 */
+		function validateAddressForm($form) {
+			var errors = {};
+			var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+			var firstName = $.trim($form.find('[name="first_name"]').val());
+			if (!firstName) {
+				errors.first_name = 'First Name is a required field.';
+			}
+
+			var lastName = $.trim($form.find('[name="last_name"]').val());
+			if (!lastName) {
+				errors.last_name = 'Last Name is a required field.';
+			}
+
+			var country = $.trim($form.find('[name="country"]').val());
+			if (!country) {
+				errors.country = 'Country / Region is a required field.';
+			}
+
+			var address1 = $.trim($form.find('[name="address_1"]').val());
+			if (!address1) {
+				errors.address_1 = 'Street Address is a required field.';
+			}
+
+			var city = $.trim($form.find('[name="city"]').val());
+			if (!city) {
+				errors.city = 'Town / City is a required field.';
+			}
+
+			var postalCode = $.trim($form.find('[name="postal_code"]').length ? $form.find('[name="postal_code"]').val() : $form.find('[name="postcode"]').val());
+			if (!postalCode) {
+				errors.postal_code = 'Postcode / ZIP is a required field.';
+			}
+
+			var state = $.trim($form.find('[name="state"]').val());
+			var $stateSelect = $form.find('select[name="state"]');
+			if ($stateSelect.length && !state) {
+				errors.state = 'State / County is required for this country.';
+			}
+
+			// Email Address is strictly mandatory
+			var rawEmail = $.trim($form.find('[name="email"]').val());
+			if (!rawEmail) {
+				errors.email = 'Email Address is a required field.';
+			} else if (!emailRegex.test(rawEmail)) {
+				errors.email = 'Please enter a valid email address.';
+			}
+
+			return errors;
+		}
+
+		function applyFormErrors($form, errors) {
+			// Clear prior error indicators
+			$form.find('.sab-field-error-message').remove();
+			$form.find('.sab-has-error').removeClass('sab-has-error woocommerce-invalid');
+			$form.find('.sab-input-error').removeClass('sab-input-error');
+
+			var $firstInvalidField = null;
+
+			$.each(errors, function(field, msg) {
+				var possibleNames = [field];
+				if (field === 'postal_code') possibleNames.push('postcode');
+				if (field === 'postcode') possibleNames.push('postal_code');
+
+				var $input = null;
+				for (var i = 0; i < possibleNames.length; i++) {
+					var $found = $form.find('[name="' + possibleNames[i] + '"]');
+					if ($found.length) {
+						$input = $found;
+						break;
+					}
+				}
+
+				if ($input && $input.length) {
+					var $row = $input.closest('.form-row');
+					$row.addClass('sab-has-error woocommerce-invalid');
+					$input.addClass('sab-input-error');
+
+					if ($row.find('.sab-field-error-message').length === 0) {
+						$row.append($('<span class="sab-field-error-message" role="alert">' + msg + '</span>'));
+					}
+
+					if (!$firstInvalidField) {
+						$firstInvalidField = $input;
+					}
+				}
+			});
+
+			if ($firstInvalidField && $firstInvalidField.length) {
+				$('html, body').animate({
+					scrollTop: Math.max(0, $firstInvalidField.offset().top - 120)
+				}, 300, function() {
+					$firstInvalidField.trigger('focus');
+				});
+			}
+		}
+
+		$('#sab-address-form').on('submit', function(e) {
+			var $form = $(this);
+			var errors = validateAddressForm($form);
+
+			if (!$.isEmptyObject(errors)) {
+				e.preventDefault();
+				applyFormErrors($form, errors);
+				return false;
+			}
+		});
+
+		// Clear individual error highlight when user edits field
+		$(document).on('input change', '#sab-address-form .sab-input-error, #sab-address-form .sab-has-error input, #sab-address-form .sab-has-error select', function() {
+			var $el = $(this);
+			var $row = $el.closest('.form-row');
+			$el.removeClass('sab-input-error');
+			$row.removeClass('sab-has-error woocommerce-invalid');
+			$row.find('.sab-field-error-message').remove();
+		});
+
+		// Detect and highlight server-side validation notices on page load
+		if ($('#sab-address-form').length) {
+			var $wcErrors = $('.woocommerce-error li, .woocommerce-notices-wrapper .woocommerce-error li');
+			if ($wcErrors.length) {
+				var backendErrors = {};
+				$wcErrors.each(function() {
+					var text = $(this).text().toLowerCase();
+					if (text.indexOf('email') !== -1) {
+						backendErrors.email = $(this).text();
+					} else if (text.indexOf('first name') !== -1) {
+						backendErrors.first_name = $(this).text();
+					} else if (text.indexOf('last name') !== -1) {
+						backendErrors.last_name = $(this).text();
+					} else if (text.indexOf('street address') !== -1 || text.indexOf('address_1') !== -1) {
+						backendErrors.address_1 = $(this).text();
+					} else if (text.indexOf('town') !== -1 || text.indexOf('city') !== -1) {
+						backendErrors.city = $(this).text();
+					} else if (text.indexOf('postcode') !== -1 || text.indexOf('zip') !== -1) {
+						backendErrors.postal_code = $(this).text();
+					} else if (text.indexOf('country') !== -1) {
+						backendErrors.country = $(this).text();
+					} else if (text.indexOf('state') !== -1) {
+						backendErrors.state = $(this).text();
+					}
+				});
+				if (!$.isEmptyObject(backendErrors)) {
+					applyFormErrors($('#sab-address-form'), backendErrors);
+				}
+			}
+		}
+
 	});
 
 })(jQuery);

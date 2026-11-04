@@ -72,7 +72,21 @@ class SAB_Ajax {
 		$validation = SAB_Address::validate( $sanitized );
 
 		if ( is_wp_error( $validation ) ) {
-			wp_send_json_error( array( 'message' => $validation->get_error_message() ) );
+			$errors_map = array();
+			foreach ( $validation->get_error_codes() as $code ) {
+				$field = preg_replace( '/^(empty_|invalid_)/', '', $code );
+				if ( 'postcode' === $field ) {
+					$field = 'postal_code';
+				}
+				$errors_map[ $field ] = $validation->get_error_message( $code );
+			}
+			wp_send_json_error(
+				array(
+					'message' => $validation->get_error_message(),
+					'errors'  => $errors_map,
+				)
+			);
+			return;
 		}
 
 		$new_id = SAB_Database::add_address( $sanitized );
@@ -117,7 +131,21 @@ class SAB_Ajax {
 
 		$validation = SAB_Address::validate( $sanitized );
 		if ( is_wp_error( $validation ) ) {
-			wp_send_json_error( array( 'message' => $validation->get_error_message() ) );
+			$errors_map = array();
+			foreach ( $validation->get_error_codes() as $code ) {
+				$field = preg_replace( '/^(empty_|invalid_)/', '', $code );
+				if ( 'postcode' === $field ) {
+					$field = 'postal_code';
+				}
+				$errors_map[ $field ] = $validation->get_error_message( $code );
+			}
+			wp_send_json_error(
+				array(
+					'message' => $validation->get_error_message(),
+					'errors'  => $errors_map,
+				)
+			);
+			return;
 		}
 
 		$updated = SAB_Database::update_address( $address_id, $sanitized );
@@ -314,35 +342,107 @@ class SAB_Ajax {
 			'city'         => sanitize_text_field( $_POST[ $prefix . 'city' ] ?? ( $_POST['city'] ?? '' ) ),
 			'state'        => sanitize_text_field( $_POST[ $prefix . 'state' ] ?? ( $_POST['state'] ?? '' ) ),
 			'country'      => sanitize_text_field( $_POST[ $prefix . 'country' ] ?? ( $_POST['country'] ?? '' ) ),
-			'postal_code'  => sanitize_text_field( $_POST[ $prefix . 'postcode' ] ?? ( $_POST['postal_code'] ?? '' ) ),
+			'postal_code'  => sanitize_text_field( $_POST[ $prefix . 'postcode' ] ?? ( $_POST[ $prefix . 'postal_code' ] ?? ( $_POST['postal_code'] ?? ( $_POST['postcode'] ?? '' ) ) ) ),
 		);
 
 		// If no nickname provided, generate default
 		if ( empty( $address_data['nickname'] ) ) {
-			$count                   = SAB_Database::get_address_count_by_type( $current_user_id, $type ) + 1;
+			$count                    = SAB_Database::get_address_count_by_type( $current_user_id, $type ) + 1;
 			$address_data['nickname'] = sprintf( '%s #%d', ucfirst( $type ), $count );
+		}
+
+		if ( isset( $_POST['is_default'] ) ) {
+			$address_data['is_default'] = ! empty( $_POST['is_default'] ) ? 1 : 0;
 		}
 
 		$validation = SAB_Address::validate( $address_data );
 		if ( is_wp_error( $validation ) ) {
-			wp_send_json_error( array( 'message' => $validation->get_error_message() ) );
+			$errors_map = array();
+			foreach ( $validation->get_error_codes() as $code ) {
+				$field = preg_replace( '/^(empty_|invalid_)/', '', $code );
+				if ( 'postcode' === $field ) {
+					$field = 'postal_code';
+				}
+				$errors_map[ $field ] = $validation->get_error_message( $code );
+			}
+			wp_send_json_error(
+				array(
+					'message' => $validation->get_error_message(),
+					'errors'  => $errors_map,
+				)
+			);
+			return;
+		}
+
+		// Avoid duplicate address records
+		$existing_addresses = SAB_Database::get_addresses( $current_user_id, $type, 'id' );
+		foreach ( $existing_addresses as $existing ) {
+			if (
+				strtolower( trim( (string) $existing->address_1 ) ) === strtolower( trim( (string) $address_data['address_1'] ) ) &&
+				strtolower( trim( (string) $existing->postal_code ) ) === strtolower( trim( (string) $address_data['postal_code'] ) ) &&
+				strtolower( trim( (string) $existing->city ) ) === strtolower( trim( (string) $address_data['city'] ) ) &&
+				strtolower( trim( (string) $existing->first_name ) ) === strtolower( trim( (string) $address_data['first_name'] ) ) &&
+				strtolower( trim( (string) $existing->last_name ) ) === strtolower( trim( (string) $address_data['last_name'] ) )
+			) {
+				$label_parts = array();
+				if ( ! empty( $existing->nickname ) ) {
+					$label_parts[] = '[' . $existing->nickname . ']';
+				}
+				$label_parts[] = trim( $existing->first_name . ' ' . $existing->last_name );
+				$label_parts[] = $existing->address_1;
+				$label_parts[] = $existing->city . ( $existing->postal_code ? ' ' . $existing->postal_code : '' );
+
+				$display_label = implode( ' — ', array_filter( $label_parts ) );
+				if ( (int) $existing->is_default === 1 ) {
+					$display_label .= ' (' . __( 'Default', 'smart-address-book' ) . ')';
+				}
+
+				wp_send_json_success(
+					array(
+						'message'    => __( 'Address already exists in your address book and has been selected.', 'smart-address-book' ),
+						'address_id' => (int) $existing->id,
+						'address'    => $existing,
+						'nickname'   => $existing->nickname,
+						'label'      => $display_label,
+						'is_default' => (int) $existing->is_default,
+					)
+				);
+				return;
+			}
 		}
 
 		$new_id = SAB_Database::add_address( $address_data );
 		if ( ! $new_id ) {
 			wp_send_json_error( array( 'message' => __( 'Could not save address.', 'smart-address-book' ) ) );
+			return;
 		}
 
 		$created = SAB_Database::get_address( $new_id );
+
+		$label_parts = array();
+		if ( ! empty( $created->nickname ) ) {
+			$label_parts[] = '[' . $created->nickname . ']';
+		}
+		$label_parts[] = trim( $created->first_name . ' ' . $created->last_name );
+		$label_parts[] = $created->address_1;
+		$label_parts[] = $created->city . ( $created->postal_code ? ' ' . $created->postal_code : '' );
+
+		$display_label = implode( ' — ', array_filter( $label_parts ) );
+		if ( (int) $created->is_default === 1 ) {
+			$display_label .= ' (' . __( 'Default', 'smart-address-book' ) . ')';
+		}
+
 		wp_send_json_success(
 			array(
 				'message'    => __( 'Address saved successfully!', 'smart-address-book' ),
 				'address_id' => $new_id,
 				'address'    => $created,
 				'nickname'   => $created->nickname,
-				'label'      => sprintf( '%s — %s %s, %s', $created->nickname, $created->first_name, $created->last_name, $created->address_1 ),
+				'label'      => $display_label,
+				'is_default' => (int) $created->is_default,
 			)
 		);
+		return;
 	}
 }
 

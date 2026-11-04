@@ -20,6 +20,53 @@ class SAB_Database {
 	}
 
 	/**
+	 * Ensure table schema includes last_used_at.
+	 */
+	public static function maybe_update_schema() {
+		global $wpdb;
+		$table_name = self::table_name();
+
+		static $checked = false;
+		if ( $checked ) {
+			return;
+		}
+		$checked = true;
+
+		$row = $wpdb->get_results( "SHOW COLUMNS FROM {$table_name} LIKE 'last_used_at'" );
+		if ( empty( $row ) ) {
+			$wpdb->query( "ALTER TABLE {$table_name} ADD COLUMN last_used_at datetime DEFAULT NULL AFTER is_default" );
+			$wpdb->query( "ALTER TABLE {$table_name} ADD INDEX last_used (user_id, address_type, last_used_at)" );
+		}
+	}
+
+	/**
+	 * Update last_used_at timestamp for an address.
+	 *
+	 * @param int $id Address ID.
+	 * @return bool
+	 */
+	public static function update_last_used( $id ) {
+		global $wpdb;
+		$table_name = self::table_name();
+		$id         = absint( $id );
+		if ( ! $id ) {
+			return false;
+		}
+
+		self::maybe_update_schema();
+
+		$result = $wpdb->update(
+			$table_name,
+			array( 'last_used_at' => current_time( 'mysql' ) ),
+			array( 'id' => $id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+
+		return false !== $result;
+	}
+
+	/**
 	 * Retrieve addresses for a user with optional filtering and sorting.
 	 *
 	 * @param int    $user_id User ID.
@@ -67,6 +114,8 @@ class SAB_Database {
 	public static function get_addresses_sorted( $user_id, $type = '' ) {
 		global $wpdb;
 
+		self::maybe_update_schema();
+
 		$table_name = self::table_name();
 		$user_id    = absint( $user_id );
 
@@ -88,35 +137,85 @@ class SAB_Database {
 			return array();
 		}
 
-		$recently_used_ids = self::get_recently_used_ids( $user_id );
+		$defaults      = array();
+		$recently_used = array();
+		$remaining     = array();
 
-		$defaults       = array();
-		$recently_used  = array();
-		$remaining      = array();
+		// Initialize flags
+		foreach ( $all as $address ) {
+			$address->is_recently_used = false;
+		}
 
+		// 1. Separate default addresses
 		foreach ( $all as $address ) {
 			if ( (int) $address->is_default === 1 ) {
 				$defaults[] = $address;
-			} elseif ( in_array( (int) $address->id, $recently_used_ids, true ) ) {
-				$recently_used[] = $address;
-			} else {
-				$remaining[] = $address;
 			}
 		}
 
-		// Sort recently_used array matching order of recently_used_ids
-		if ( ! empty( $recently_used ) && ! empty( $recently_used_ids ) ) {
-			usort(
-				$recently_used,
-				function ( $a, $b ) use ( $recently_used_ids ) {
-					$pos_a = array_search( (int) $a->id, $recently_used_ids, true );
-					$pos_b = array_search( (int) $b->id, $recently_used_ids, true );
-					return $pos_a - $pos_b;
+		$non_defaults = array_values(
+			array_filter(
+				$all,
+				function ( $a ) {
+					return (int) $a->is_default !== 1;
 				}
-			);
+			)
+		);
+
+		// 2. Check for addresses with last_used_at
+		$has_last_used = false;
+		foreach ( $non_defaults as $a ) {
+			if ( ! empty( $a->last_used_at ) ) {
+				$has_last_used = true;
+				break;
+			}
 		}
 
-		// Sort remaining by updated_at / id DESC
+		if ( $has_last_used ) {
+			foreach ( $non_defaults as $address ) {
+				if ( ! empty( $address->last_used_at ) ) {
+					$recently_used[] = $address;
+				} else {
+					$remaining[] = $address;
+				}
+			}
+
+			// Sort recently used by last_used_at DESC
+			usort(
+				$recently_used,
+				function ( $a, $b ) {
+					return strtotime( $b->last_used_at ) - strtotime( $a->last_used_at );
+				}
+			);
+		} else {
+			// Fallback to order history if last_used_at is not populated yet
+			$recently_used_ids = self::get_recently_used_ids( $user_id );
+			foreach ( $non_defaults as $address ) {
+				if ( in_array( (int) $address->id, $recently_used_ids, true ) ) {
+					$recently_used[] = $address;
+				} else {
+					$remaining[] = $address;
+				}
+			}
+
+			if ( ! empty( $recently_used ) && ! empty( $recently_used_ids ) ) {
+				usort(
+					$recently_used,
+					function ( $a, $b ) use ( $recently_used_ids ) {
+						$pos_a = array_search( (int) $a->id, $recently_used_ids, true );
+						$pos_b = array_search( (int) $b->id, $recently_used_ids, true );
+						return $pos_a - $pos_b;
+					}
+				);
+			}
+		}
+
+		// Mark the most recently used address
+		if ( ! empty( $recently_used ) ) {
+			$recently_used[0]->is_recently_used = true;
+		}
+
+		// 3. Sort remaining by updated_at / id DESC
 		usort(
 			$remaining,
 			function ( $a, $b ) {
@@ -243,6 +342,8 @@ class SAB_Database {
 	 */
 	public static function add_address( $data ) {
 		global $wpdb;
+
+		self::maybe_update_schema();
 
 		$table_name = self::table_name();
 

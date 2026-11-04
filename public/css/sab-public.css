@@ -303,6 +303,322 @@
 	border-radius: 6px;
 }
 
+.sab-blocks-selector-wrapper {
+	margin-bottom: 20px;
+	padding: 14px 16px;
+	background: #f7f9fa;
+	border: 1px solid var(--sab-border);
+	border-radius: 6px;
+}
+
+.sab-selector-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 8px;
+}
+
+.sab-selector-actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+/* Address Summary Card */
+.sab-address-summary-box {
+	margin: 12px 0 16px 0;
+	width: 100%;
+}
+
+.sab-summary-card {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	background: #fdfdfd;
+	border: 1px solid #d5d9d9;
+	border-radius: 6px;
+	padding: 14px 16px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+	transition: all 0.2s ease;
+	gap: 15px;
+}
+
+.sab-summary-card:hover {
+	border-color: #a2a6a6;
+}
+
+.sab-summary-content {
+	flex: 1 1 auto;
+}
+
+.sab-summary-header-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 6px;
+}
+
+.sab-summary-title {
+	font-size: 14px;
+	color: #111;
+}
+
+.sab-summary-text {
+	font-size: 13.5px;
+	line-height: 1.5;
+	color: #333;
+}
+
+.sab-summary-action {
+	flex: 0 0 auto;
+}
+
+.sab-summary-edit-btn {
+	background: #fff !important;
+	border: 1px solid #757575 !important;
+	color: #2c3338 !important;
+	padding: 5px 14px !important;
+	border-radius: 4px !important;
+	font-weight: 600 !important;
+	font-size: 13px !important;
+	cursor: pointer !important;
+	transition: all 0.2s ease !important;
+}
+
+.sab-summary-edit-btn:hover {
+	background: #f0f0f1 !important;
+	border-color: #1d2327 !important;
+	color: #000 !important;
+}
+
+/* Inline Form Actions at Bottom of Form */
+.sab-inline-form-actions {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	margin-top: 15px;
+	margin-bottom: 20px;
+	padding-top: 12px;
+	border-top: 1px solid #e5e5e5;
+	width: 100%;
+}
+
+.sab-inline-save-btn,
+.sab-blocks-save-btn {
+	font-weight: 600 !important;
+	padding: 8px 18px !important;
+	font-size: 14px !important;
+}
+
+.sab-inline-cancel-btn,
+.sab-blocks-cancel-btn {
+	background: #f7f7f7 !important;
+	border: 1px solid #c3c4c7 !important;
+	color: #333 !important;
+	padding: 8px 18px !important;
+	font-size: 14px !important;
+	border-radius: 4px !important;
+	cursor: pointer !important;
+}
+
+.sab-inline-cancel-btn:hover,
+.sab-blocks-cancel-btn:hover {
+	background: #ececec !important;
+	color: #111 !important;
+}
+
+.sab-blocks-inline-edit-form {
+	background: #fff;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+	padding: 16px;
+	margin-top: 10px;
+	margin-bottom: 16px;
+}
+
+.sab-blocks-form-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+
+.sab-blocks-form-full {
+	grid-column: 1 / -1;
+}
+
+.sab-blocks-inline-edit-form label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+	font-size: 13px;
+}
+
+.sab-blocks-inline-edit-form input,
+.sab-blocks-inline-edit-form select {
+	width: 100%;
+	padding: 8px 10px;
+	border: 1px solid #757575;
+	border-radius: 4px;
+	box-sizing: border-box;
+	font-size: 14px;
+}
+
+/* Classic Checkout: Form Toggling and Duplicate Prevention */
+.woocommerce-billing-fields__field-wrapper.sab-form-collapsed,
+.woocommerce-shipping-fields__field-wrapper.sab-form-collapsed,
+.sab-checkout-save-billing.sab-form-collapsed,
+.sab-checkout-save-shipping.sab-form-collapsed {
+	display: none !important;
+}
+
+.sab-checkout-shipping-selector ~ .sab-address-summary-box,
+#sab_shipping_summary_box ~ #sab_shipping_summary_box,
+#sab_billing_summary_box ~ #sab_billing_summary_box {
+	display: none !important;
+}
+
+/* Checkout Blocks: Remove second duplicate Shipping Address summary */
+.wc-block-checkout__shipping-fields .wc-block-components-address-card-wrapper,
+.wp-block-woocommerce-checkout-shipping-address-block .wc-block-components-address-card-wrapper,
+.wc-block-checkout__shipping-fields .wc-block-components-address-card,
+.wp-block-woocommerce-checkout-shipping-address-block .wc-block-components-address-card,
+.sab-blocks-shipping-selector ~ .wc-block-components-address-card-wrapper,
+.sab-blocks-shipping-selector ~ .wc-block-components-address-card {
+	display: none !important;
+}
+
+/* Checkout Blocks: Remove Billing Address form visible by default */
+.wc-block-checkout__billing-fields .wc-block-components-address-form-wrapper,
+.wp-block-woocommerce-checkout-billing-address-block .wc-block-components-address-form-wrapper,
+.wc-block-checkout__billing-fields .wc-block-components-address-form,
+.wp-block-woocommerce-checkout-billing-address-block .wc-block-components-address-form,
+.sab-blocks-billing-selector ~ .wc-block-components-address-form-wrapper,
+.sab-blocks-billing-selector ~ .wc-block-components-address-form,
+.sab-blocks-billing-selector ~ .wc-block-components-address-card-wrapper,
+.sab-blocks-billing-selector ~ .wc-block-components-address-card {
+	display: none !important;
+}
+
+.sab-add-new-address-btn {
+	background: #fff !important;
+	border: 1px solid var(--sab-primary) !important;
+	color: var(--sab-primary) !important;
+	border-radius: 4px !important;
+	font-weight: 600 !important;
+	cursor: pointer !important;
+	transition: all 0.2s ease !important;
+}
+
+.sab-add-new-address-btn:hover {
+	background: var(--sab-primary) !important;
+	color: #fff !important;
+}
+
+/* Modal Overlay & Dialog */
+body.sab-modal-open {
+	overflow: hidden;
+}
+
+.sab-modal-backdrop {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	background: rgba(0, 0, 0, 0.55);
+	z-index: 999999;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 20px;
+	box-sizing: border-box;
+}
+
+.sab-modal-dialog {
+	background: #fff;
+	width: 100%;
+	max-width: 600px;
+	max-height: 90vh;
+	border-radius: 8px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	animation: sabModalFadeIn 0.2s ease;
+}
+
+@keyframes sabModalFadeIn {
+	from {
+		opacity: 0;
+		transform: scale(0.97) translateY(-10px);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1) translateY(0);
+	}
+}
+
+.sab-modal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 16px 20px;
+	border-bottom: 1px solid var(--sab-border);
+	background: #fafafa;
+}
+
+.sab-modal-header h3 {
+	margin: 0;
+	font-size: 18px;
+	color: #222;
+}
+
+.sab-modal-close {
+	background: transparent;
+	border: none;
+	font-size: 26px;
+	line-height: 1;
+	color: #777;
+	cursor: pointer;
+	padding: 0 5px;
+}
+
+.sab-modal-close:hover {
+	color: #000;
+}
+
+.sab-modal-body {
+	padding: 20px;
+	overflow-y: auto;
+	flex: 1;
+}
+
+.sab-modal-notice {
+	padding: 10px 14px;
+	margin-bottom: 15px;
+	border-radius: 4px;
+	font-size: 13px;
+}
+
+.sab-modal-footer {
+	margin-top: 20px;
+	padding-top: 15px;
+	border-top: 1px solid var(--sab-border);
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.sab-modal-save-btn {
+	background: var(--sab-primary) !important;
+	color: #fff !important;
+	border-color: var(--sab-primary) !important;
+}
+
+.sab-modal-save-btn:hover {
+	background: var(--sab-primary-hover) !important;
+}
+
 .sab-checkout-selector-container label {
 	margin-bottom: 6px;
 	display: block;
@@ -361,5 +677,26 @@
 	.sab-address-grid {
 		grid-template-columns: 1fr;
 	}
+}
+
+/* Invalid Field Highlighting & Messages */
+.form-row.sab-has-error input.input-text,
+.form-row.sab-has-error input[type="text"],
+.form-row.sab-has-error input[type="email"],
+.form-row.sab-has-error input[type="tel"],
+.form-row.sab-has-error select,
+.sab-input-error {
+	border-color: #c40000 !important;
+	box-shadow: 0 0 0 1px #c40000 !important;
+	background-color: #fff9f9 !important;
+}
+
+.sab-field-error-message {
+	color: #c40000;
+	font-size: 12px;
+	line-height: 1.4;
+	margin-top: 4px;
+	display: block;
+	font-weight: 500;
 }
 

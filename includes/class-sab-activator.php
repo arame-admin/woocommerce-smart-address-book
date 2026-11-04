@@ -50,12 +50,14 @@ class SAB_Activator {
 			country varchar(10) DEFAULT NULL,
 			postal_code varchar(20) DEFAULT NULL,
 			is_default tinyint(1) NOT NULL DEFAULT 0,
+			last_used_at datetime DEFAULT NULL,
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
 			KEY user_id (user_id),
 			KEY user_type (user_id, address_type),
-			KEY is_default (user_id, address_type, is_default)
+			KEY is_default (user_id, address_type, is_default),
+			KEY last_used (user_id, address_type, last_used_at)
 		) {$charset_collate};";
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';

@@ -15,13 +15,25 @@ $is_edit      = ( 'edit' === $action && ! empty( $address ) );
 $address_id   = $is_edit ? (int) $address->id : 0;
 $back_url     = wc_get_account_endpoint_url( 'sab-address-book' );
 $default_type = sanitize_text_field( $_GET['type'] ?? 'shipping' );
-$type         = $is_edit ? $address->address_type : $default_type;
 
-$country  = $is_edit ? $address->country : ( WC()->customer ? WC()->customer->get_shipping_country() : 'US' );
-$state    = $is_edit ? $address->state : ( WC()->customer ? WC()->customer->get_shipping_state() : '' );
+// Preserve submitted form values on validation error, falling back to existing address or default
+$val_type        = sanitize_text_field( $_POST['address_type'] ?? ( $is_edit ? $address->address_type : $default_type ) );
+$val_nickname    = sanitize_text_field( $_POST['nickname'] ?? ( $is_edit ? $address->nickname : '' ) );
+$val_first_name  = sanitize_text_field( $_POST['first_name'] ?? ( $is_edit ? $address->first_name : '' ) );
+$val_last_name   = sanitize_text_field( $_POST['last_name'] ?? ( $is_edit ? $address->last_name : '' ) );
+$val_company     = sanitize_text_field( $_POST['company'] ?? ( $is_edit ? $address->company : '' ) );
+$val_country     = sanitize_text_field( $_POST['country'] ?? ( $is_edit ? $address->country : ( WC()->customer ? WC()->customer->get_shipping_country() : 'US' ) ) );
+$val_address_1   = sanitize_text_field( $_POST['address_1'] ?? ( $is_edit ? $address->address_1 : '' ) );
+$val_address_2   = sanitize_text_field( $_POST['address_2'] ?? ( $is_edit ? $address->address_2 : '' ) );
+$val_city        = sanitize_text_field( $_POST['city'] ?? ( $is_edit ? $address->city : '' ) );
+$val_state       = sanitize_text_field( $_POST['state'] ?? ( $is_edit ? $address->state : ( WC()->customer ? WC()->customer->get_shipping_state() : '' ) ) );
+$val_postal_code = sanitize_text_field( $_POST['postal_code'] ?? ( $is_edit ? $address->postal_code : '' ) );
+$val_phone       = sanitize_text_field( $_POST['phone'] ?? ( $is_edit ? $address->phone : '' ) );
+$val_email       = sanitize_email( $_POST['email'] ?? ( $is_edit ? $address->email : '' ) );
+$val_is_default  = isset( $_POST['sab_save_address'] ) ? ( ! empty( $_POST['is_default'] ) ? 1 : 0 ) : ( $is_edit && (int) $address->is_default === 1 ? 1 : 0 );
 
 $countries = WC()->countries->get_allowed_countries();
-$states    = WC()->countries->get_states( $country );
+$states    = WC()->countries->get_states( $val_country );
 ?>
 
 <div class="sab-address-form-wrapper">
@@ -35,7 +47,7 @@ $states    = WC()->countries->get_states( $country );
 		</a>
 	</div>
 
-	<form method="post" action="" class="woocommerce-address-fields sab-address-form" id="sab-address-form">
+	<form method="post" action="" class="woocommerce-address-fields sab-address-form" id="sab-address-form" novalidate="novalidate">
 		<?php wp_nonce_field( 'sab_address_form', 'sab_nonce' ); ?>
 		<input type="hidden" name="address_id" value="<?php echo esc_attr( $address_id ); ?>" />
 
@@ -47,8 +59,8 @@ $states    = WC()->countries->get_states( $country );
 					<?php esc_html_e( 'Address Type', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
 				</label>
 				<select name="address_type" id="sab_address_type" class="select">
-					<option value="shipping" <?php selected( $type, 'shipping' ); ?>><?php esc_html_e( 'Shipping Address', 'smart-address-book' ); ?></option>
-					<option value="billing" <?php selected( $type, 'billing' ); ?>><?php esc_html_e( 'Billing Address', 'smart-address-book' ); ?></option>
+					<option value="shipping" <?php selected( $val_type, 'shipping' ); ?>><?php esc_html_e( 'Shipping Address', 'smart-address-book' ); ?></option>
+					<option value="billing" <?php selected( $val_type, 'billing' ); ?>><?php esc_html_e( 'Billing Address', 'smart-address-book' ); ?></option>
 				</select>
 			</p>
 
@@ -58,7 +70,7 @@ $states    = WC()->countries->get_states( $country );
 				<label for="sab_nickname">
 					<?php esc_html_e( 'Address Nickname / Label', 'smart-address-book' ); ?> <span class="optional">(<?php esc_html_e( 'optional', 'smart-address-book' ); ?>)</span>
 				</label>
-				<input type="text" class="input-text" name="nickname" id="sab_nickname" placeholder="<?php esc_attr_e( 'e.g. Home, Office, Parents, Warehouse', 'smart-address-book' ); ?>" value="<?php echo esc_attr( $is_edit ? $address->nickname : '' ); ?>" />
+				<input type="text" class="input-text" name="nickname" id="sab_nickname" placeholder="<?php esc_attr_e( 'e.g. Home, Office, Parents, Warehouse', 'smart-address-book' ); ?>" value="<?php echo esc_attr( $val_nickname ); ?>" />
 			</p>
 			<?php endif; ?>
 
@@ -67,14 +79,14 @@ $states    = WC()->countries->get_states( $country );
 				<label for="sab_first_name">
 					<?php esc_html_e( 'First Name', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
 				</label>
-				<input type="text" class="input-text" name="first_name" id="sab_first_name" required value="<?php echo esc_attr( $is_edit ? $address->first_name : '' ); ?>" />
+				<input type="text" class="input-text" name="first_name" id="sab_first_name" required value="<?php echo esc_attr( $val_first_name ); ?>" />
 			</p>
 
 			<p class="form-row form-row-last validate-required" id="sab_last_name_field">
 				<label for="sab_last_name">
 					<?php esc_html_e( 'Last Name', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
 				</label>
-				<input type="text" class="input-text" name="last_name" id="sab_last_name" required value="<?php echo esc_attr( $is_edit ? $address->last_name : '' ); ?>" />
+				<input type="text" class="input-text" name="last_name" id="sab_last_name" required value="<?php echo esc_attr( $val_last_name ); ?>" />
 			</p>
 
 			<!-- Company -->
@@ -82,7 +94,7 @@ $states    = WC()->countries->get_states( $country );
 				<label for="sab_company">
 					<?php esc_html_e( 'Company Name', 'smart-address-book' ); ?> <span class="optional">(<?php esc_html_e( 'optional', 'smart-address-book' ); ?>)</span>
 				</label>
-				<input type="text" class="input-text" name="company" id="sab_company" value="<?php echo esc_attr( $is_edit ? $address->company : '' ); ?>" />
+				<input type="text" class="input-text" name="company" id="sab_company" value="<?php echo esc_attr( $val_company ); ?>" />
 			</p>
 
 			<!-- Country -->
@@ -93,7 +105,7 @@ $states    = WC()->countries->get_states( $country );
 				<select name="country" id="sab_country" class="country_to_state country_select" required>
 					<option value=""><?php esc_html_e( 'Select a country / region&hellip;', 'smart-address-book' ); ?></option>
 					<?php foreach ( $countries as $code => $name ) : ?>
-						<option value="<?php echo esc_attr( $code ); ?>" <?php selected( $country, $code ); ?>><?php echo esc_html( $name ); ?></option>
+						<option value="<?php echo esc_attr( $code ); ?>" <?php selected( $val_country, $code ); ?>><?php echo esc_html( $name ); ?></option>
 					<?php endforeach; ?>
 				</select>
 			</p>
@@ -103,14 +115,14 @@ $states    = WC()->countries->get_states( $country );
 				<label for="sab_address_1">
 					<?php esc_html_e( 'Street Address', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
 				</label>
-				<input type="text" class="input-text" name="address_1" id="sab_address_1" placeholder="<?php esc_attr_e( 'House number and street name', 'smart-address-book' ); ?>" required value="<?php echo esc_attr( $is_edit ? $address->address_1 : '' ); ?>" />
+				<input type="text" class="input-text" name="address_1" id="sab_address_1" placeholder="<?php esc_attr_e( 'House number and street name', 'smart-address-book' ); ?>" required value="<?php echo esc_attr( $val_address_1 ); ?>" />
 			</p>
 
 			<p class="form-row form-row-wide" id="sab_address_2_field">
 				<label for="sab_address_2" class="screen-reader-text">
 					<?php esc_html_e( 'Apartment, suite, unit, etc.', 'smart-address-book' ); ?>
 				</label>
-				<input type="text" class="input-text" name="address_2" id="sab_address_2" placeholder="<?php esc_attr_e( 'Apartment, suite, unit, etc. (optional)', 'smart-address-book' ); ?>" value="<?php echo esc_attr( $is_edit ? $address->address_2 : '' ); ?>" />
+				<input type="text" class="input-text" name="address_2" id="sab_address_2" placeholder="<?php esc_attr_e( 'Apartment, suite, unit, etc. (optional)', 'smart-address-book' ); ?>" value="<?php echo esc_attr( $val_address_2 ); ?>" />
 			</p>
 
 			<!-- Town / City -->
@@ -118,7 +130,7 @@ $states    = WC()->countries->get_states( $country );
 				<label for="sab_city">
 					<?php esc_html_e( 'Town / City', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
 				</label>
-				<input type="text" class="input-text" name="city" id="sab_city" required value="<?php echo esc_attr( $is_edit ? $address->city : '' ); ?>" />
+				<input type="text" class="input-text" name="city" id="sab_city" required value="<?php echo esc_attr( $val_city ); ?>" />
 			</p>
 
 			<!-- State / County -->
@@ -130,11 +142,11 @@ $states    = WC()->countries->get_states( $country );
 					<select name="state" id="sab_state" class="state_select">
 						<option value=""><?php esc_html_e( 'Select an option&hellip;', 'smart-address-book' ); ?></option>
 						<?php foreach ( $states as $s_code => $s_name ) : ?>
-							<option value="<?php echo esc_attr( $s_code ); ?>" <?php selected( $state, $s_code ); ?>><?php echo esc_html( $s_name ); ?></option>
+							<option value="<?php echo esc_attr( $s_code ); ?>" <?php selected( $val_state, $s_code ); ?>><?php echo esc_html( $s_name ); ?></option>
 						<?php endforeach; ?>
 					</select>
 				<?php else : ?>
-					<input type="text" class="input-text" name="state" id="sab_state" value="<?php echo esc_attr( $state ); ?>" />
+					<input type="text" class="input-text" name="state" id="sab_state" value="<?php echo esc_attr( $val_state ); ?>" />
 				<?php endif; ?>
 			</p>
 
@@ -143,7 +155,7 @@ $states    = WC()->countries->get_states( $country );
 				<label for="sab_postal_code">
 					<?php esc_html_e( 'Postcode / ZIP', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
 				</label>
-				<input type="text" class="input-text" name="postal_code" id="sab_postal_code" required value="<?php echo esc_attr( $is_edit ? $address->postal_code : '' ); ?>" />
+				<input type="text" class="input-text" name="postal_code" id="sab_postal_code" required value="<?php echo esc_attr( $val_postal_code ); ?>" />
 			</p>
 
 			<!-- Phone -->
@@ -151,21 +163,21 @@ $states    = WC()->countries->get_states( $country );
 				<label for="sab_phone">
 					<?php esc_html_e( 'Phone Number', 'smart-address-book' ); ?> <span class="optional">(<?php esc_html_e( 'optional', 'smart-address-book' ); ?>)</span>
 				</label>
-				<input type="tel" class="input-text" name="phone" id="sab_phone" value="<?php echo esc_attr( $is_edit ? $address->phone : '' ); ?>" />
+				<input type="tel" class="input-text" name="phone" id="sab_phone" value="<?php echo esc_attr( $val_phone ); ?>" />
 			</p>
 
 			<!-- Email -->
-			<p class="form-row form-row-last" id="sab_email_field">
+			<p class="form-row form-row-last validate-required validate-email" id="sab_email_field">
 				<label for="sab_email">
-					<?php esc_html_e( 'Email Address', 'smart-address-book' ); ?> <span class="optional">(<?php esc_html_e( 'optional', 'smart-address-book' ); ?>)</span>
+					<?php esc_html_e( 'Email Address', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
 				</label>
-				<input type="email" class="input-text" name="email" id="sab_email" value="<?php echo esc_attr( $is_edit ? $address->email : '' ); ?>" />
+				<input type="email" class="input-text" name="email" id="sab_email" required value="<?php echo esc_attr( $val_email ); ?>" />
 			</p>
 
 			<!-- Default Checkbox -->
 			<p class="form-row form-row-wide" id="sab_is_default_field">
 				<label class="woocommerce-form__label woocommerce-form__label-for-checkbox checkbox">
-					<input type="checkbox" class="woocommerce-form__input woocommerce-form__input-checkbox input-checkbox" name="is_default" id="sab_is_default" value="1" <?php checked( $is_edit && (int) $address->is_default === 1 ); ?> />
+					<input type="checkbox" class="woocommerce-form__input woocommerce-form__input-checkbox input-checkbox" name="is_default" id="sab_is_default" value="1" <?php checked( (int) $val_is_default === 1 ); ?> />
 					<span><?php esc_html_e( 'Set as default address for this type', 'smart-address-book' ); ?></span>
 				</label>
 			</p>
@@ -183,4 +195,3 @@ $states    = WC()->countries->get_states( $country );
 	</form>
 
 </div>
-

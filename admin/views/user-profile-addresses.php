@@ -120,8 +120,8 @@ $countries = WC()->countries ? WC()->countries->get_allowed_countries() : array(
 						</div>
 
 						<div class="sab-form-col">
-							<label for="sab_modal_email"><strong><?php esc_html_e( 'Email', 'smart-address-book' ); ?></strong></label>
-							<input type="email" name="email" id="sab_modal_email" class="widefat" />
+							<label for="sab_modal_email"><strong><?php esc_html_e( 'Email', 'smart-address-book' ); ?> *</strong></label>
+							<input type="email" name="email" id="sab_modal_email" class="widefat" required />
 						</div>
 
 						<div class="sab-form-col">

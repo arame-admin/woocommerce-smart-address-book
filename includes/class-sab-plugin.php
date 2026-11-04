@@ -98,6 +98,21 @@ class SAB_Plugin {
 
 		// Load plugin textdomain
 		add_action( 'init', array( $this, 'load_textdomain' ) );
+
+		// Register WooCommerce Checkout Blocks integration
+		add_action( 'woocommerce_blocks_checkout_block_registration', array( $this, 'register_blocks_integration' ) );
+	}
+
+	/**
+	 * Register WooCommerce Checkout Blocks Integration.
+	 *
+	 * @param \Automattic\WooCommerce\Blocks\Integrations\IntegrationRegistry $integration_registry Integration registry.
+	 */
+	public function register_blocks_integration( $integration_registry ) {
+		require_once SAB_PLUGIN_DIR . 'includes/class-sab-blocks-integration.php';
+		if ( class_exists( 'SAB_Blocks_Integration' ) ) {
+			$integration_registry->register( new SAB_Blocks_Integration() );
+		}
 	}
 
 	/**
