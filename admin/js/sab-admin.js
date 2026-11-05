@@ -129,6 +129,18 @@
 						$row.fadeOut(300, function() {
 							$(this).remove();
 						});
+
+						if (res.data && res.data.new_default_id) {
+							var $newRow = $('#sab-admin-row-' + res.data.new_default_id);
+							if ($newRow.length) {
+								var defaultLabel = (typeof sab_admin_params !== 'undefined' && sab_admin_params.i18n && sab_admin_params.i18n.default)
+									? sab_admin_params.i18n.default
+									: 'Default';
+								$newRow.find('td:nth-child(6)').html(
+									'<span class="dashicons dashicons-star-filled sab-star-icon"></span> <strong>' + defaultLabel + '</strong>'
+								);
+							}
+						}
 					} else {
 						alert(res.data.message || sab_admin_params.i18n.error);
 					}

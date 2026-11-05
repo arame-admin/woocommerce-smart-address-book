@@ -15,6 +15,8 @@ class SAB_Address {
 	 * @return array
 	 */
 	public static function get_fields() {
+		$validate_required = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
+
 		return apply_filters(
 			'sab_address_fields',
 			array(
@@ -26,12 +28,12 @@ class SAB_Address {
 				),
 				'first_name'   => array(
 					'label'    => __( 'First Name', 'smart-address-book' ),
-					'required' => true,
+					'required' => $validate_required,
 					'type'     => 'text',
 				),
 				'last_name'    => array(
 					'label'    => __( 'Last Name', 'smart-address-book' ),
-					'required' => true,
+					'required' => $validate_required,
 					'type'     => 'text',
 				),
 				'company'      => array(
@@ -46,18 +48,18 @@ class SAB_Address {
 				),
 				'email'        => array(
 					'label'    => __( 'Email Address', 'smart-address-book' ),
-					'required' => true,
+					'required' => $validate_required,
 					'type'     => 'email',
 				),
 				'country'      => array(
 					'label'    => __( 'Country / Region', 'smart-address-book' ),
-					'required' => true,
+					'required' => $validate_required,
 					'type'     => 'country',
 				),
 				'address_1'    => array(
 					'label'       => __( 'Street Address', 'smart-address-book' ),
 					'placeholder' => __( 'House number and street name', 'smart-address-book' ),
-					'required'    => true,
+					'required'    => $validate_required,
 					'type'        => 'text',
 				),
 				'address_2'    => array(
@@ -68,7 +70,7 @@ class SAB_Address {
 				),
 				'city'         => array(
 					'label'    => __( 'Town / City', 'smart-address-book' ),
-					'required' => true,
+					'required' => $validate_required,
 					'type'     => 'text',
 				),
 				'state'        => array(
@@ -78,7 +80,7 @@ class SAB_Address {
 				),
 				'postal_code'  => array(
 					'label'    => __( 'Postcode / ZIP', 'smart-address-book' ),
-					'required' => true,
+					'required' => $validate_required,
 					'type'     => 'text',
 				),
 			)
@@ -147,7 +149,9 @@ class SAB_Address {
 			$states = WC()->countries->get_states( $country );
 			if ( ! empty( $states ) && is_array( $states ) ) {
 				if ( empty( $state ) ) {
-					$errors->add( 'empty_state', __( 'State / County is required for this country.', 'smart-address-book' ) );
+					if ( $validate_required ) {
+						$errors->add( 'empty_state', __( 'State / County is required for this country.', 'smart-address-book' ) );
+					}
 				} elseif ( ! array_key_exists( $state, $states ) && ! in_array( $state, $states, true ) ) {
 					$errors->add( 'invalid_state', __( 'Please enter a valid State / County.', 'smart-address-book' ) );
 				}
@@ -182,8 +186,10 @@ class SAB_Address {
 		$raw_email = trim( (string) ( $data['email'] ?? '' ) );
 		$email     = sanitize_email( $raw_email );
 		if ( empty( $raw_email ) ) {
-			if ( ! $errors->get_error_message( 'empty_email' ) ) {
-				$errors->add( 'empty_email', __( 'Email Address is a required field.', 'smart-address-book' ) );
+			if ( $validate_required ) {
+				if ( ! $errors->get_error_message( 'empty_email' ) ) {
+					$errors->add( 'empty_email', __( 'Email Address is a required field.', 'smart-address-book' ) );
+				}
 			}
 		} elseif ( ! is_email( $email ) ) {
 			$errors->add( 'invalid_email', __( 'Please enter a valid email address.', 'smart-address-book' ) );
@@ -238,6 +244,10 @@ class SAB_Address {
 
 		if ( isset( $data['is_default'] ) ) {
 			$sanitized['is_default'] = ! empty( $data['is_default'] ) ? 1 : 0;
+		}
+
+		if ( isset( $data['user_id'] ) ) {
+			$sanitized['user_id'] = absint( $data['user_id'] );
 		}
 
 		// Ensure postal_code is set

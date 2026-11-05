@@ -43,11 +43,13 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 			SAB_VERSION
 		);
 
+		$script_version = defined( 'SAB_VERSION' ) ? SAB_VERSION . '.' . filemtime( SAB_PLUGIN_DIR . 'public/js/sab-blocks-checkout.js' ) : time();
+
 		wp_register_script(
 			'sab-blocks-checkout',
 			SAB_PLUGIN_URL . 'public/js/sab-blocks-checkout.js',
 			array( 'jquery', 'wp-data', 'wp-element', 'wp-hooks' ),
-			SAB_VERSION,
+			$script_version,
 			true
 		);
 
@@ -159,23 +161,43 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 			return $formatted;
 		};
 
+		$max_allowed            = (int) get_option( 'sab_max_addresses', 0 );
+		$can_add_billing        = SAB_Database::can_add_address( $user_id, 'billing' );
+		$can_add_shipping       = SAB_Database::can_add_address( $user_id, 'shipping' );
+		$can_add                = $can_add_billing || $can_add_shipping;
+		$validate_req           = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
+		$checkout_save          = 'yes' === get_option( 'sab_enable_checkout_save', 'yes' );
+		$limit_message_billing  = sprintf( __( 'You have reached the maximum limit of %d saved billing addresses.', 'smart-address-book' ), $max_allowed );
+		$limit_message_shipping = sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses.', 'smart-address-book' ), $max_allowed );
+
 		return array(
-			'is_logged_in'        => true,
-			'billing_addresses'   => $format_address_list( $billing_addresses, $default_billing ? $default_billing->id : 0 ),
-			'shipping_addresses'  => $format_address_list( $shipping_addresses, $default_shipping ? $default_shipping->id : 0 ),
-			'default_billing_id'  => $default_billing ? (int) $default_billing->id : 0,
-			'default_shipping_id' => $default_shipping ? (int) $default_shipping->id : 0,
-			'enable_billing'      => 'yes' === get_option( 'sab_enable_billing', 'yes' ),
-			'enable_shipping'     => 'yes' === get_option( 'sab_enable_shipping', 'yes' ),
-			'ajax_url'            => admin_url( 'admin-ajax.php' ),
-			'nonce'               => wp_create_nonce( 'sab_checkout_nonce' ),
+			'is_logged_in'             => true,
+			'billing_addresses'        => $format_address_list( $billing_addresses, $default_billing ? $default_billing->id : 0 ),
+			'shipping_addresses'       => $format_address_list( $shipping_addresses, $default_shipping ? $default_shipping->id : 0 ),
+			'default_billing_id'       => $default_billing ? (int) $default_billing->id : 0,
+			'default_shipping_id'      => $default_shipping ? (int) $default_shipping->id : 0,
+			'enable_billing'           => 'yes' === get_option( 'sab_enable_billing', 'yes' ),
+			'enable_shipping'          => 'yes' === get_option( 'sab_enable_shipping', 'yes' ),
+			'max_addresses'            => $max_allowed,
+			'can_add_address'          => $can_add,
+			'can_add_billing'          => $can_add_billing,
+			'can_add_shipping'         => $can_add_shipping,
+			'validate_required_fields' => $validate_req,
+			'enable_checkout_save'     => $checkout_save,
+			'limit_message'            => sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ),
+			'limit_message_billing'    => $limit_message_billing,
+			'limit_message_shipping'   => $limit_message_shipping,
+			'ajax_url'                 => admin_url( 'admin-ajax.php' ),
+			'nonce'                    => wp_create_nonce( 'sab_checkout_nonce' ),
 			'countries'           => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array(),
 			'states'              => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_states() : array(),
 			'i18n'                => array(
-				'select_billing'  => __( 'Select a saved billing address:', 'smart-address-book' ),
-				'select_shipping' => __( 'Select a saved shipping address:', 'smart-address-book' ),
-				'add_new_address' => __( '+ Add New Address', 'smart-address-book' ),
-				'enter_new'       => __( '+ Enter a new address', 'smart-address-book' ),
+				'select_billing'   => __( 'Select a saved billing address:', 'smart-address-book' ),
+				'select_shipping'  => __( 'Select a saved shipping address:', 'smart-address-book' ),
+				'add_new_address'  => __( '+ Add New Address', 'smart-address-book' ),
+				'add_new_billing'  => __( '+ Add New Billing Address', 'smart-address-book' ),
+				'add_new_shipping' => __( '+ Add New Shipping Address', 'smart-address-book' ),
+				'enter_new'        => __( '+ Enter a new address', 'smart-address-book' ),
 				'default_badge'   => __( 'Default', 'smart-address-book' ),
 				'recent_badge'    => __( 'Recently Used', 'smart-address-book' ),
 				'saving'          => __( 'Saving...', 'smart-address-book' ),

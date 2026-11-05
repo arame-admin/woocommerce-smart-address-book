@@ -34,6 +34,14 @@ $val_is_default  = isset( $_POST['sab_save_address'] ) ? ( ! empty( $_POST['is_d
 
 $countries = WC()->countries->get_allowed_countries();
 $states    = WC()->countries->get_states( $val_country );
+
+$validate_required = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
+$req_mark          = $validate_required ? ' <abbr class="required" title="required">*</abbr>' : '';
+$req_attr          = $validate_required ? ' required' : '';
+$max_allowed       = (int) get_option( 'sab_max_addresses', 0 );
+$can_add_billing   = SAB_Database::can_add_address( $user_id, 'billing' );
+$can_add_shipping  = SAB_Database::can_add_address( $user_id, 'shipping' );
+$can_add_current   = ( 'billing' === $val_type ) ? $can_add_billing : $can_add_shipping;
 ?>
 
 <div class="sab-address-form-wrapper">
@@ -47,7 +55,22 @@ $states    = WC()->countries->get_states( $val_country );
 		</a>
 	</div>
 
-	<form method="post" action="" class="woocommerce-address-fields sab-address-form" id="sab-address-form" novalidate="novalidate">
+	<?php if ( ! $is_edit && $max_allowed > 0 && ! $can_add_current ) : ?>
+	<div class="sab-limit-notice woocommerce-error" style="margin-bottom: 20px;">
+		<p style="margin: 0;">
+			<strong><?php esc_html_e( 'Maximum Limit Reached:', 'smart-address-book' ); ?></strong>
+			<?php echo esc_html( sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses. To add a new %2$s address, please delete an existing one.', 'smart-address-book' ), $max_allowed, $val_type ) ); ?>
+		</p>
+	</div>
+	<?php endif; ?>
+
+	<form method="post" action="" class="woocommerce-address-fields sab-address-form" id="sab-address-form" novalidate="novalidate"
+		data-is-edit="<?php echo $is_edit ? '1' : '0'; ?>"
+		data-max-allowed="<?php echo esc_attr( $max_allowed ); ?>"
+		data-can-add-billing="<?php echo $can_add_billing ? '1' : '0'; ?>"
+		data-can-add-shipping="<?php echo $can_add_shipping ? '1' : '0'; ?>"
+		data-limit-billing="<?php echo esc_attr( sprintf( __( 'You have reached the maximum limit of %d saved billing addresses. To add a new billing address, please delete an existing one.', 'smart-address-book' ), $max_allowed ) ); ?>"
+		data-limit-shipping="<?php echo esc_attr( sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses. To add a new shipping address, please delete an existing one.', 'smart-address-book' ), $max_allowed ) ); ?>">
 		<?php wp_nonce_field( 'sab_address_form', 'sab_nonce' ); ?>
 		<input type="hidden" name="address_id" value="<?php echo esc_attr( $address_id ); ?>" />
 
@@ -75,18 +98,18 @@ $states    = WC()->countries->get_states( $val_country );
 			<?php endif; ?>
 
 			<!-- First & Last Name -->
-			<p class="form-row form-row-first validate-required" id="sab_first_name_field">
+			<p class="form-row form-row-first <?php echo $validate_required ? 'validate-required' : ''; ?>" id="sab_first_name_field">
 				<label for="sab_first_name">
-					<?php esc_html_e( 'First Name', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+					<?php esc_html_e( 'First Name', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</label>
-				<input type="text" class="input-text" name="first_name" id="sab_first_name" required value="<?php echo esc_attr( $val_first_name ); ?>" />
+				<input type="text" class="input-text" name="first_name" id="sab_first_name"<?php echo $req_attr; ?> value="<?php echo esc_attr( $val_first_name ); ?>" />
 			</p>
 
-			<p class="form-row form-row-last validate-required" id="sab_last_name_field">
+			<p class="form-row form-row-last <?php echo $validate_required ? 'validate-required' : ''; ?>" id="sab_last_name_field">
 				<label for="sab_last_name">
-					<?php esc_html_e( 'Last Name', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+					<?php esc_html_e( 'Last Name', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</label>
-				<input type="text" class="input-text" name="last_name" id="sab_last_name" required value="<?php echo esc_attr( $val_last_name ); ?>" />
+				<input type="text" class="input-text" name="last_name" id="sab_last_name"<?php echo $req_attr; ?> value="<?php echo esc_attr( $val_last_name ); ?>" />
 			</p>
 
 			<!-- Company -->
@@ -98,11 +121,11 @@ $states    = WC()->countries->get_states( $val_country );
 			</p>
 
 			<!-- Country -->
-			<p class="form-row form-row-wide validate-required" id="sab_country_field">
+			<p class="form-row form-row-wide <?php echo $validate_required ? 'validate-required' : ''; ?>" id="sab_country_field">
 				<label for="sab_country">
-					<?php esc_html_e( 'Country / Region', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+					<?php esc_html_e( 'Country / Region', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</label>
-				<select name="country" id="sab_country" class="country_to_state country_select" required>
+				<select name="country" id="sab_country" class="country_to_state country_select"<?php echo $req_attr; ?>>
 					<option value=""><?php esc_html_e( 'Select a country / region&hellip;', 'smart-address-book' ); ?></option>
 					<?php foreach ( $countries as $code => $name ) : ?>
 						<option value="<?php echo esc_attr( $code ); ?>" <?php selected( $val_country, $code ); ?>><?php echo esc_html( $name ); ?></option>
@@ -111,11 +134,11 @@ $states    = WC()->countries->get_states( $val_country );
 			</p>
 
 			<!-- Street Address -->
-			<p class="form-row form-row-wide validate-required" id="sab_address_1_field">
+			<p class="form-row form-row-wide <?php echo $validate_required ? 'validate-required' : ''; ?>" id="sab_address_1_field">
 				<label for="sab_address_1">
-					<?php esc_html_e( 'Street Address', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+					<?php esc_html_e( 'Street Address', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</label>
-				<input type="text" class="input-text" name="address_1" id="sab_address_1" placeholder="<?php esc_attr_e( 'House number and street name', 'smart-address-book' ); ?>" required value="<?php echo esc_attr( $val_address_1 ); ?>" />
+				<input type="text" class="input-text" name="address_1" id="sab_address_1" placeholder="<?php esc_attr_e( 'House number and street name', 'smart-address-book' ); ?>"<?php echo $req_attr; ?> value="<?php echo esc_attr( $val_address_1 ); ?>" />
 			</p>
 
 			<p class="form-row form-row-wide" id="sab_address_2_field">
@@ -126,11 +149,11 @@ $states    = WC()->countries->get_states( $val_country );
 			</p>
 
 			<!-- Town / City -->
-			<p class="form-row form-row-wide validate-required" id="sab_city_field">
+			<p class="form-row form-row-wide <?php echo $validate_required ? 'validate-required' : ''; ?>" id="sab_city_field">
 				<label for="sab_city">
-					<?php esc_html_e( 'Town / City', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+					<?php esc_html_e( 'Town / City', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</label>
-				<input type="text" class="input-text" name="city" id="sab_city" required value="<?php echo esc_attr( $val_city ); ?>" />
+				<input type="text" class="input-text" name="city" id="sab_city"<?php echo $req_attr; ?> value="<?php echo esc_attr( $val_city ); ?>" />
 			</p>
 
 			<!-- State / County -->
@@ -151,11 +174,11 @@ $states    = WC()->countries->get_states( $val_country );
 			</p>
 
 			<!-- Postcode / ZIP -->
-			<p class="form-row form-row-last validate-required" id="sab_postcode_field">
+			<p class="form-row form-row-last <?php echo $validate_required ? 'validate-required' : ''; ?>" id="sab_postcode_field">
 				<label for="sab_postal_code">
-					<?php esc_html_e( 'Postcode / ZIP', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+					<?php esc_html_e( 'Postcode / ZIP', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</label>
-				<input type="text" class="input-text" name="postal_code" id="sab_postal_code" required value="<?php echo esc_attr( $val_postal_code ); ?>" />
+				<input type="text" class="input-text" name="postal_code" id="sab_postal_code"<?php echo $req_attr; ?> value="<?php echo esc_attr( $val_postal_code ); ?>" />
 			</p>
 
 			<!-- Phone -->
@@ -167,11 +190,11 @@ $states    = WC()->countries->get_states( $val_country );
 			</p>
 
 			<!-- Email -->
-			<p class="form-row form-row-last validate-required validate-email" id="sab_email_field">
+			<p class="form-row form-row-last <?php echo $validate_required ? 'validate-required' : ''; ?> validate-email" id="sab_email_field">
 				<label for="sab_email">
-					<?php esc_html_e( 'Email Address', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+					<?php esc_html_e( 'Email Address', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</label>
-				<input type="email" class="input-text" name="email" id="sab_email" required value="<?php echo esc_attr( $val_email ); ?>" />
+				<input type="email" class="input-text" name="email" id="sab_email"<?php echo $req_attr; ?> value="<?php echo esc_attr( $val_email ); ?>" />
 			</p>
 
 			<!-- Default Checkbox -->

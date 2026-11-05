@@ -106,7 +106,7 @@ class SAB_Checkout {
 	 * Render "Save to address book" checkbox for billing.
 	 */
 	public function render_billing_save_checkbox() {
-		if ( ! is_user_logged_in() || 'yes' !== get_option( 'sab_enable_checkout_save', 'yes' ) ) {
+		if ( ! is_user_logged_in() || 'yes' !== get_option( 'sab_enable_checkout_save', 'yes' ) || ! SAB_Database::can_add_address( get_current_user_id(), 'billing' ) ) {
 			return;
 		}
 		$this->render_save_fields( 'billing' );
@@ -116,7 +116,7 @@ class SAB_Checkout {
 	 * Render "Save to address book" checkbox for shipping.
 	 */
 	public function render_shipping_save_checkbox() {
-		if ( ! is_user_logged_in() || 'yes' !== get_option( 'sab_enable_checkout_save', 'yes' ) ) {
+		if ( ! is_user_logged_in() || 'yes' !== get_option( 'sab_enable_checkout_save', 'yes' ) || ! SAB_Database::can_add_address( get_current_user_id(), 'shipping' ) ) {
 			return;
 		}
 		$this->render_save_fields( 'shipping' );
@@ -230,7 +230,7 @@ class SAB_Checkout {
 				'postal_code'  => $order->get_billing_postcode(),
 			);
 
-			if ( ! is_wp_error( SAB_Address::validate( $billing_data ) ) ) {
+			if ( SAB_Database::can_add_address( $user_id, 'billing' ) && ! is_wp_error( SAB_Address::validate( $billing_data ) ) ) {
 				$new_b_id = SAB_Database::add_address( $billing_data );
 				if ( $new_b_id ) {
 					$order->update_meta_data( '_sab_billing_address_id', $new_b_id );
@@ -265,7 +265,7 @@ class SAB_Checkout {
 				'postal_code'  => $order->get_shipping_postcode() ?: $order->get_billing_postcode(),
 			);
 
-			if ( ! is_wp_error( SAB_Address::validate( $shipping_data ) ) ) {
+			if ( SAB_Database::can_add_address( $user_id, 'shipping' ) && ! is_wp_error( SAB_Address::validate( $shipping_data ) ) ) {
 				$new_s_id = SAB_Database::add_address( $shipping_data );
 				if ( $new_s_id ) {
 					$order->update_meta_data( '_sab_shipping_address_id', $new_s_id );
@@ -294,6 +294,10 @@ class SAB_Checkout {
 		$countries       = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array();
 		$default_country = ( function_exists( 'WC' ) && WC()->customer ) ? ( WC()->customer->get_shipping_country() ?: 'US' ) : 'US';
 		$states          = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_states( $default_country ) : array();
+
+		$validate_required = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
+		$req_mark          = $validate_required ? ' <abbr class="required" title="required">*</abbr>' : '';
+		$req_attr          = $validate_required ? ' required' : '';
 		?>
 		<div id="sab-checkout-address-modal" class="sab-modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="sab-modal-title">
 			<div class="sab-modal-dialog">
@@ -337,18 +341,18 @@ class SAB_Checkout {
 							<?php endif; ?>
 
 							<!-- First & Last Name -->
-							<p class="form-row form-row-first validate-required">
+							<p class="form-row form-row-first <?php echo $validate_required ? 'validate-required' : ''; ?>">
 								<label for="sab_modal_first_name">
-									<?php esc_html_e( 'First Name', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+									<?php esc_html_e( 'First Name', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 								</label>
-								<input type="text" class="input-text" name="first_name" id="sab_modal_first_name" required />
+								<input type="text" class="input-text" name="first_name" id="sab_modal_first_name"<?php echo $req_attr; ?> />
 							</p>
 
-							<p class="form-row form-row-last validate-required">
+							<p class="form-row form-row-last <?php echo $validate_required ? 'validate-required' : ''; ?>">
 								<label for="sab_modal_last_name">
-									<?php esc_html_e( 'Last Name', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+									<?php esc_html_e( 'Last Name', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 								</label>
-								<input type="text" class="input-text" name="last_name" id="sab_modal_last_name" required />
+								<input type="text" class="input-text" name="last_name" id="sab_modal_last_name"<?php echo $req_attr; ?> />
 							</p>
 
 							<!-- Company -->
@@ -360,11 +364,11 @@ class SAB_Checkout {
 							</p>
 
 							<!-- Country -->
-							<p class="form-row form-row-wide validate-required">
+							<p class="form-row form-row-wide <?php echo $validate_required ? 'validate-required' : ''; ?>">
 								<label for="sab_modal_country">
-									<?php esc_html_e( 'Country / Region', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+									<?php esc_html_e( 'Country / Region', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 								</label>
-								<select name="country" id="sab_modal_country" class="country_to_state country_select" required>
+								<select name="country" id="sab_modal_country" class="country_to_state country_select"<?php echo $req_attr; ?>>
 									<option value=""><?php esc_html_e( 'Select a country / region&hellip;', 'smart-address-book' ); ?></option>
 									<?php foreach ( $countries as $code => $name ) : ?>
 										<option value="<?php echo esc_attr( $code ); ?>" <?php selected( $default_country, $code ); ?>><?php echo esc_html( $name ); ?></option>
@@ -373,11 +377,11 @@ class SAB_Checkout {
 							</p>
 
 							<!-- Street Address -->
-							<p class="form-row form-row-wide validate-required">
+							<p class="form-row form-row-wide <?php echo $validate_required ? 'validate-required' : ''; ?>">
 								<label for="sab_modal_address_1">
-									<?php esc_html_e( 'Street Address', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+									<?php esc_html_e( 'Street Address', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 								</label>
-								<input type="text" class="input-text" name="address_1" id="sab_modal_address_1" placeholder="<?php esc_attr_e( 'House number and street name', 'smart-address-book' ); ?>" required />
+								<input type="text" class="input-text" name="address_1" id="sab_modal_address_1" placeholder="<?php esc_attr_e( 'House number and street name', 'smart-address-book' ); ?>"<?php echo $req_attr; ?> />
 							</p>
 
 							<p class="form-row form-row-wide">
@@ -388,11 +392,11 @@ class SAB_Checkout {
 							</p>
 
 							<!-- City -->
-							<p class="form-row form-row-wide validate-required">
+							<p class="form-row form-row-wide <?php echo $validate_required ? 'validate-required' : ''; ?>">
 								<label for="sab_modal_city">
-									<?php esc_html_e( 'Town / City', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+									<?php esc_html_e( 'Town / City', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 								</label>
-								<input type="text" class="input-text" name="city" id="sab_modal_city" required />
+								<input type="text" class="input-text" name="city" id="sab_modal_city"<?php echo $req_attr; ?> />
 							</p>
 
 							<!-- State -->
@@ -413,11 +417,11 @@ class SAB_Checkout {
 							</p>
 
 							<!-- Postcode -->
-							<p class="form-row form-row-last validate-required">
+							<p class="form-row form-row-last <?php echo $validate_required ? 'validate-required' : ''; ?>">
 								<label for="sab_modal_postcode">
-									<?php esc_html_e( 'Postcode / ZIP', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+									<?php esc_html_e( 'Postcode / ZIP', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 								</label>
-								<input type="text" class="input-text" name="postal_code" id="sab_modal_postcode" required />
+								<input type="text" class="input-text" name="postal_code" id="sab_modal_postcode"<?php echo $req_attr; ?> />
 							</p>
 
 							<!-- Phone -->
@@ -429,11 +433,11 @@ class SAB_Checkout {
 							</p>
 
 							<!-- Email -->
-							<p class="form-row form-row-last validate-required validate-email" id="sab_modal_email_field">
+							<p class="form-row form-row-last <?php echo $validate_required ? 'validate-required' : ''; ?> validate-email" id="sab_modal_email_field">
 								<label for="sab_modal_email">
-									<?php esc_html_e( 'Email Address', 'smart-address-book' ); ?> <abbr class="required" title="required">*</abbr>
+									<?php esc_html_e( 'Email Address', 'smart-address-book' ); ?><?php echo $req_mark; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 								</label>
-								<input type="email" class="input-text" name="email" id="sab_modal_email" required />
+								<input type="email" class="input-text" name="email" id="sab_modal_email"<?php echo $req_attr; ?> />
 							</p>
 
 							<!-- Default Checkbox -->

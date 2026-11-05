@@ -116,7 +116,7 @@ class SAB_Admin_Settings {
 				),
 				array(
 					'title'   => __( 'Enforce Required Fields', 'smart-address-book' ),
-					'desc'    => __( 'Require First Name, Last Name, Street Address, City, Country, and Postcode', 'smart-address-book' ),
+					'desc'    => __( 'Require First Name, Last Name, Street Address, City, Country, Postcode, and Email', 'smart-address-book' ),
 					'id'      => 'sab_validate_required_fields',
 					'default' => 'yes',
 					'type'    => 'checkbox',

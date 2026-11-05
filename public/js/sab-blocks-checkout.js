@@ -15,23 +15,20 @@
 
 		if (typeof sab_blocks_checkout_params !== 'undefined') {
 			sabData = sab_blocks_checkout_params;
-			return sabData;
-		}
-
-		if (typeof sab_checkout_params !== 'undefined') {
+		} else if (typeof sab_checkout_params !== 'undefined') {
 			sabData = sab_checkout_params;
-			return sabData;
-		}
-
-		if (window.wc && window.wc.wcSettings && typeof window.wc.wcSettings.getSetting === 'function') {
+		} else if (window.wc && window.wc.wcSettings && typeof window.wc.wcSettings.getSetting === 'function') {
 			var setting = window.wc.wcSettings.getSetting('smart-address-book_data');
 			if (setting) {
 				sabData = setting;
-				return sabData;
 			}
 		}
 
-		return null;
+		if (sabData && typeof window.sab_checkout_params === 'undefined') {
+			window.sab_checkout_params = sabData;
+		}
+
+		return sabData;
 	}
 
 	$(document).ready(function() {
@@ -168,6 +165,14 @@
 			var saveLabel = (settings.i18n && settings.i18n.save_changes) ? settings.i18n.save_changes : 'Save Changes';
 			var cancelLabel = (settings.i18n && settings.i18n.cancel) ? settings.i18n.cancel : 'Cancel';
 
+			var enableCheckoutSave = (typeof settings.enable_checkout_save !== 'undefined') ? !!settings.enable_checkout_save : true;
+			var canAddForType = (type === 'billing') ? settings.can_add_billing : settings.can_add_shipping;
+			if (typeof canAddForType === 'undefined') {
+				canAddForType = (typeof settings.can_add_address !== 'undefined') ? !!settings.can_add_address : true;
+			}
+			var validateRequired = (typeof settings.validate_required_fields !== 'undefined') ? !!settings.validate_required_fields : true;
+			var reqMark = validateRequired ? ' <abbr class="required" title="required">*</abbr>' : '';
+
 			var selectId = 'sab_blocks_' + type + '_address_select';
 
 			var selectedAddr = null;
@@ -186,7 +191,9 @@
 			var html = '<div class="sab-blocks-selector-wrapper sab-blocks-' + type + '-selector" data-type="' + type + '">';
 			html += '  <div class="sab-selector-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">';
 			html += '    <label for="' + selectId + '" style="font-weight:600; margin:0; font-size:14px;">' + label + '</label>';
-			html += '    <button type="button" class="button sab-add-new-address-btn" data-type="' + type + '" style="font-size:12px; padding:4px 10px; cursor:pointer;">' + btnLabel + '</button>';
+			if (enableCheckoutSave) {
+				html += '    <button type="button" class="button sab-add-new-address-btn" data-type="' + type + '" style="font-size:12px; padding:4px 10px; cursor:pointer;">' + btnLabel + '</button>';
+			}
 			html += '  </div>';
 			html += '  <div class="sab-selector-control" style="margin-bottom:12px;">';
 			html += '    <select id="' + selectId + '" class="sab-blocks-address-dropdown" data-type="' + type + '" style="width:100%; padding:8px 10px; border:1px solid #757575; border-radius:4px; font-size:14px; background:#fff;">';
@@ -197,7 +204,6 @@
 				html += '<option value="' + item.id + '"' + (isSelected ? ' selected="selected"' : '') + ' data-address=\'' + JSON.stringify(item.wc_address || item.raw) + '\'>' + item.label + '</option>';
 			});
 
-			html += '      <option value="new">' + (settings.i18n.enter_new || '+ Enter a new address') + '</option>';
 			html += '    </select>';
 			html += '  </div>';
 
@@ -226,11 +232,11 @@
 			html += '  <div class="sab-blocks-inline-edit-form" id="sab_blocks_' + type + '_edit_form" style="display:none;">';
 			html += '    <div class="sab-blocks-form-grid">';
 			html += '      <div class="sab-blocks-form-col">';
-			html += '        <label>First Name <abbr class="required" title="required">*</abbr></label>';
+			html += '        <label>First Name' + reqMark + '</label>';
 			html += '        <input type="text" name="first_name" class="sab-input" value="' + (selectedAddr ? (selectedAddr.first_name || '') : '') + '" />';
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col">';
-			html += '        <label>Last Name <abbr class="required" title="required">*</abbr></label>';
+			html += '        <label>Last Name' + reqMark + '</label>';
 			html += '        <input type="text" name="last_name" class="sab-input" value="' + (selectedAddr ? (selectedAddr.last_name || '') : '') + '" />';
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col sab-blocks-form-full">';
@@ -238,7 +244,7 @@
 			html += '        <input type="text" name="company" class="sab-input" value="' + (selectedAddr ? (selectedAddr.company || '') : '') + '" />';
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col sab-blocks-form-full">';
-			html += '        <label>Country / Region <abbr class="required" title="required">*</abbr></label>';
+			html += '        <label>Country / Region' + reqMark + '</label>';
 			html += '        <select name="country" class="sab-select sab-blocks-country-select" data-type="' + type + '">';
 			var selCountry = selectedAddr ? (selectedAddr.country || 'US') : 'US';
 			$.each(countries, function(code, cname) {
@@ -247,7 +253,7 @@
 			html += '        </select>';
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col sab-blocks-form-full">';
-			html += '        <label>Street Address <abbr class="required" title="required">*</abbr></label>';
+			html += '        <label>Street Address' + reqMark + '</label>';
 			html += '        <input type="text" name="address_1" class="sab-input" placeholder="House number and street name" value="' + (selectedAddr ? (selectedAddr.address_1 || '') : '') + '" />';
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col sab-blocks-form-full">';
@@ -255,7 +261,7 @@
 			html += '        <input type="text" name="address_2" class="sab-input" placeholder="Apartment, suite, unit, etc. (optional)" value="' + (selectedAddr ? (selectedAddr.address_2 || '') : '') + '" />';
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col sab-blocks-form-full">';
-			html += '        <label>Town / City <abbr class="required" title="required">*</abbr></label>';
+			html += '        <label>Town / City' + reqMark + '</label>';
 			html += '        <input type="text" name="city" class="sab-input" value="' + (selectedAddr ? (selectedAddr.city || '') : '') + '" />';
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col" id="sab_blocks_' + type + '_state_wrapper">';
@@ -263,7 +269,7 @@
 			html += '        <input type="text" name="state" class="sab-input" value="' + (selectedAddr ? (selectedAddr.state || '') : '') + '" />';
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col">';
-			html += '        <label>Postcode / ZIP <abbr class="required" title="required">*</abbr></label>';
+			html += '        <label>Postcode / ZIP' + reqMark + '</label>';
 			html += '        <input type="text" name="postal_code" class="sab-input" value="' + (selectedAddr ? (selectedAddr.postal_code || (selectedAddr.postcode || '')) : '') + '" />';
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col">';
@@ -271,7 +277,7 @@
 			html += '        <input type="tel" name="phone" class="sab-input" value="' + (selectedAddr ? (selectedAddr.phone || '') : '') + '" />';
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col">';
-			html += '        <label>Email Address <abbr class="required" title="required">*</abbr></label>';
+			html += '        <label>Email Address' + reqMark + '</label>';
 			html += '        <input type="email" name="email" class="sab-input" value="' + (selectedAddr ? (selectedAddr.email || '') : '') + '" />';
 			html += '      </div>';
 			html += '    </div>';
@@ -297,15 +303,27 @@
 				return;
 			}
 
+			// Remove "+ Enter a new address" option from all address dropdowns in Block Checkout
+			$('.sab-blocks-address-dropdown option, .wp-block-woocommerce-checkout select option').filter(function() {
+				var txt = $(this).text().toLowerCase();
+				return txt.indexOf('enter a new address') !== -1 || $(this).val() === 'new';
+			}).remove();
+
 			// 1. Shipping: Remove duplicate shipping address card / summary
 			var $shippingSection = $blockCheckout.find('.wc-block-checkout__shipping-fields, .wp-block-woocommerce-checkout-shipping-address-block');
 			if ($shippingSection.length) {
-				$shippingSection.find('.wc-block-components-address-card-wrapper, .wc-block-components-address-card').hide();
+				$shippingSection.find('.wc-block-components-address-form-wrapper, .wc-block-components-address-form, .wc-block-components-address-card-wrapper, .wc-block-components-address-card').hide();
 				if ($shippingSection.find('.sab-blocks-shipping-selector').length > 1) {
 					$shippingSection.find('.sab-blocks-shipping-selector:not(:first)').remove();
 				}
 				if ($shippingSection.find('#sab_blocks_shipping_summary_box').length > 1) {
 					$shippingSection.find('#sab_blocks_shipping_summary_box:not(:first)').remove();
+				}
+
+				// Keep SAB full shipping form hidden by default until Edit is clicked
+				var $shippingEditForm = $('#sab_blocks_shipping_edit_form');
+				if ($shippingEditForm.length && !$shippingEditForm.hasClass('sab-form-expanded')) {
+					$shippingEditForm.hide();
 				}
 			}
 
@@ -520,28 +538,34 @@
 			// Validation
 			var errors = {};
 			var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			var validateRequired = (typeof settings.validate_required_fields !== 'undefined') ? !!settings.validate_required_fields : true;
 
-			var firstName = $.trim($editForm.find('[name="first_name"]').val());
-			if (!firstName) errors.first_name = 'First Name is a required field.';
+			if (validateRequired) {
+				var firstName = $.trim($editForm.find('[name="first_name"]').val());
+				if (!firstName) errors.first_name = 'First Name is a required field.';
 
-			var lastName = $.trim($editForm.find('[name="last_name"]').val());
-			if (!lastName) errors.last_name = 'Last Name is a required field.';
+				var lastName = $.trim($editForm.find('[name="last_name"]').val());
+				if (!lastName) errors.last_name = 'Last Name is a required field.';
 
-			var country = $.trim($editForm.find('[name="country"]').val());
-			if (!country) errors.country = 'Country / Region is a required field.';
+				var country = $.trim($editForm.find('[name="country"]').val());
+				if (!country) errors.country = 'Country / Region is a required field.';
 
-			var address1 = $.trim($editForm.find('[name="address_1"]').val());
-			if (!address1) errors.address_1 = 'Street Address is a required field.';
+				var address1 = $.trim($editForm.find('[name="address_1"]').val());
+				if (!address1) errors.address_1 = 'Street Address is a required field.';
 
-			var city = $.trim($editForm.find('[name="city"]').val());
-			if (!city) errors.city = 'Town / City is a required field.';
+				var city = $.trim($editForm.find('[name="city"]').val());
+				if (!city) errors.city = 'Town / City is a required field.';
 
-			var postcode = $.trim($editForm.find('[name="postal_code"]').val());
-			if (!postcode) errors.postal_code = 'Postcode / ZIP is a required field.';
+				var postcode = $.trim($editForm.find('[name="postal_code"]').val());
+				if (!postcode) errors.postal_code = 'Postcode / ZIP is a required field.';
+			}
 
+			// Email address validation: required when validateRequired is true, format checked if entered
 			var email = $.trim($editForm.find('[name="email"]').val());
 			if (!email) {
-				errors.email = 'Email Address is a required field.';
+				if (validateRequired) {
+					errors.email = 'Email Address is a required field.';
+				}
 			} else if (!emailRegex.test(email)) {
 				errors.email = 'Please enter a valid email address.';
 			}
@@ -623,6 +647,19 @@
 			var raw = data.address;
 			var label = data.label;
 
+			var newEntry = {
+				id: newId,
+				label: label,
+				raw: raw,
+				wc_address: raw
+			};
+
+			if (type === 'shipping') {
+				shippingAddresses.unshift(newEntry);
+			} else if (type === 'billing') {
+				billingAddresses.unshift(newEntry);
+			}
+
 			var $dropdown = $('#sab_blocks_' + type + '_address_select');
 			if ($dropdown.length) {
 				var $existing = $dropdown.find('option[value="' + newId + '"]');
@@ -640,6 +677,27 @@
 					}
 				}
 				$dropdown.val(newId).trigger('change');
+			} else {
+				// If selector was not rendered previously, mount now
+				mountBlocksSelectors();
+				var $newDropdown = $('#sab_blocks_' + type + '_address_select');
+				if ($newDropdown.length) {
+					$newDropdown.val(newId).trigger('change');
+				}
+			}
+
+			// Update limits for type if maximum limit configured
+			var currentCount = (type === 'shipping') ? shippingAddresses.length : billingAddresses.length;
+			if (settings.max_addresses > 0 && currentCount >= settings.max_addresses) {
+				if (type === 'shipping') {
+					settings.can_add_shipping = false;
+					if (typeof sab_checkout_params !== 'undefined') sab_checkout_params.can_add_shipping = false;
+					if (typeof sab_blocks_checkout_params !== 'undefined') sab_blocks_checkout_params.can_add_shipping = false;
+				} else {
+					settings.can_add_billing = false;
+					if (typeof sab_checkout_params !== 'undefined') sab_checkout_params.can_add_billing = false;
+					if (typeof sab_blocks_checkout_params !== 'undefined') sab_blocks_checkout_params.can_add_billing = false;
+				}
 			}
 		});
 

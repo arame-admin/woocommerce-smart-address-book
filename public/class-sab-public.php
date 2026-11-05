@@ -66,19 +66,36 @@ class SAB_Public {
 				true
 			);
 
+			$user_id          = get_current_user_id();
+			$max_allowed      = (int) get_option( 'sab_max_addresses', 0 );
+			$can_add_billing  = SAB_Database::can_add_address( $user_id, 'billing' );
+			$can_add_shipping = SAB_Database::can_add_address( $user_id, 'shipping' );
+			$can_add          = $can_add_billing || $can_add_shipping;
+			$validate_req     = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
+
 			wp_localize_script(
 				'sab-public',
 				'sab_params',
 				array(
-					'ajax_url' => admin_url( 'admin-ajax.php' ),
-					'nonce'    => wp_create_nonce( 'sab_nonce' ),
-					'states'   => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_states() : array(),
+					'ajax_url'                 => admin_url( 'admin-ajax.php' ),
+					'nonce'                    => wp_create_nonce( 'sab_nonce' ),
+					'states'                   => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_states() : array(),
+					'max_addresses'            => $max_allowed,
+					'can_add_address'          => $can_add,
+					'can_add_billing'          => $can_add_billing,
+					'can_add_shipping'         => $can_add_shipping,
+					'validate_required_fields' => $validate_req,
+					'limit_message'            => sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ),
+					'limit_message_billing'    => sprintf( __( 'You have reached the maximum limit of %d saved billing addresses.', 'smart-address-book' ), $max_allowed ),
+					'limit_message_shipping'   => sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses.', 'smart-address-book' ), $max_allowed ),
 					'i18n'     => array(
 						'confirm_delete'    => __( 'Are you sure you want to delete this address?', 'smart-address-book' ),
 						'deleting'          => __( 'Deleting...', 'smart-address-book' ),
 						'saving'            => __( 'Saving...', 'smart-address-book' ),
 						'error'             => __( 'An error occurred. Please try again.', 'smart-address-book' ),
 						'select_state_text' => __( 'Select an option&hellip;', 'woocommerce' ),
+						'default_billing'   => __( 'Default Billing', 'smart-address-book' ),
+						'default_shipping'  => __( 'Default Shipping', 'smart-address-book' ),
 					),
 				)
 			);
@@ -143,18 +160,34 @@ class SAB_Public {
 				return $formatted;
 			};
 
+			$max_allowed       = (int) get_option( 'sab_max_addresses', 0 );
+			$can_add_billing   = SAB_Database::can_add_address( $user_id, 'billing' );
+			$can_add_shipping  = SAB_Database::can_add_address( $user_id, 'shipping' );
+			$can_add           = $can_add_billing || $can_add_shipping;
+			$validate_req      = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
+			$checkout_save     = 'yes' === get_option( 'sab_enable_checkout_save', 'yes' );
+
 			$checkout_data = array(
-				'is_logged_in'        => true,
-				'ajax_url'            => admin_url( 'admin-ajax.php' ),
-				'nonce'               => wp_create_nonce( 'sab_checkout_nonce' ),
-				'states'              => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_states() : array(),
-				'countries'           => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array(),
-				'billing_addresses'   => $format_addr_fn( $billing_addresses, $default_billing ? $default_billing->id : 0 ),
-				'shipping_addresses'  => $format_addr_fn( $shipping_addresses, $default_shipping ? $default_shipping->id : 0 ),
-				'default_billing_id'  => $default_billing ? (int) $default_billing->id : 0,
-				'default_shipping_id' => $default_shipping ? (int) $default_shipping->id : 0,
-				'enable_billing'      => 'yes' === get_option( 'sab_enable_billing', 'yes' ),
-				'enable_shipping'     => 'yes' === get_option( 'sab_enable_shipping', 'yes' ),
+				'is_logged_in'             => true,
+				'ajax_url'                 => admin_url( 'admin-ajax.php' ),
+				'nonce'                    => wp_create_nonce( 'sab_checkout_nonce' ),
+				'states'                   => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_states() : array(),
+				'countries'                => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array(),
+				'billing_addresses'        => $format_addr_fn( $billing_addresses, $default_billing ? $default_billing->id : 0 ),
+				'shipping_addresses'       => $format_addr_fn( $shipping_addresses, $default_shipping ? $default_shipping->id : 0 ),
+				'default_billing_id'       => $default_billing ? (int) $default_billing->id : 0,
+				'default_shipping_id'      => $default_shipping ? (int) $default_shipping->id : 0,
+				'enable_billing'           => 'yes' === get_option( 'sab_enable_billing', 'yes' ),
+				'enable_shipping'          => 'yes' === get_option( 'sab_enable_shipping', 'yes' ),
+				'max_addresses'            => $max_allowed,
+				'can_add_address'          => $can_add,
+				'can_add_billing'          => $can_add_billing,
+				'can_add_shipping'         => $can_add_shipping,
+				'validate_required_fields' => $validate_req,
+				'enable_checkout_save'     => $checkout_save,
+				'limit_message'            => sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ),
+				'limit_message_billing'    => sprintf( __( 'You have reached the maximum limit of %d saved billing addresses.', 'smart-address-book' ), $max_allowed ),
+				'limit_message_shipping'   => sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses.', 'smart-address-book' ), $max_allowed ),
 				'i18n'                => array(
 					'select_billing'    => __( 'Select a saved billing address:', 'smart-address-book' ),
 					'select_shipping'   => __( 'Select a saved shipping address:', 'smart-address-book' ),
@@ -176,11 +209,12 @@ class SAB_Public {
 			wp_localize_script( 'sab-checkout', 'sab_checkout_params', $checkout_data );
 
 			// Also register and localize sab-blocks-checkout for Checkout Blocks
+			$blocks_js_ver = defined( 'SAB_VERSION' ) ? SAB_VERSION . '.' . filemtime( SAB_PLUGIN_DIR . 'public/js/sab-blocks-checkout.js' ) : time();
 			wp_enqueue_script(
 				'sab-blocks-checkout',
 				SAB_PLUGIN_URL . 'public/js/sab-blocks-checkout.js',
 				array( 'jquery' ),
-				SAB_VERSION,
+				$blocks_js_ver,
 				true
 			);
 			wp_localize_script( 'sab-blocks-checkout', 'sab_blocks_checkout_params', $checkout_data );

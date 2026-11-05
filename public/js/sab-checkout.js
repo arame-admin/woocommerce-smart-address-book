@@ -6,6 +6,13 @@
 	'use strict';
 
 	$(document).ready(function() {
+		if (typeof window.sab_checkout_params === 'undefined') {
+			if (typeof sab_blocks_checkout_params !== 'undefined') {
+				window.sab_checkout_params = sab_blocks_checkout_params;
+			} else if (window.wc && window.wc.wcSettings && typeof window.wc.wcSettings.getSetting === 'function') {
+				window.sab_checkout_params = window.wc.wcSettings.getSetting('smart-address-book_data');
+			}
+		}
 
 		/**
 		 * Helper: Populate WooCommerce checkout input fields.
@@ -106,47 +113,54 @@
 		function validateAddressForm($form) {
 			var errors = {};
 			var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			var validateRequired = (typeof sab_checkout_params !== 'undefined' && typeof sab_checkout_params.validate_required_fields !== 'undefined')
+				? !!sab_checkout_params.validate_required_fields
+				: true;
 
-			var firstName = $.trim($form.find('[name="first_name"]').val());
-			if (!firstName) {
-				errors.first_name = 'First Name is a required field.';
+			if (validateRequired) {
+				var firstName = $.trim($form.find('[name="first_name"]').val());
+				if (!firstName) {
+					errors.first_name = 'First Name is a required field.';
+				}
+
+				var lastName = $.trim($form.find('[name="last_name"]').val());
+				if (!lastName) {
+					errors.last_name = 'Last Name is a required field.';
+				}
+
+				var country = $.trim($form.find('[name="country"]').val());
+				if (!country) {
+					errors.country = 'Please choose a valid country / region.';
+				}
+
+				var address1 = $.trim($form.find('[name="address_1"]').val());
+				if (!address1) {
+					errors.address_1 = 'Street Address is a required field.';
+				}
+
+				var city = $.trim($form.find('[name="city"]').val());
+				if (!city) {
+					errors.city = 'Town / City is a required field.';
+				}
+
+				var postalCode = $.trim($form.find('[name="postal_code"]').length ? $form.find('[name="postal_code"]').val() : $form.find('[name="postcode"]').val());
+				if (!postalCode) {
+					errors.postal_code = 'Postcode / ZIP is a required field.';
+				}
+
+				var state = $.trim($form.find('[name="state"]').val());
+				var $stateSelect = $form.find('select[name="state"]');
+				if ($stateSelect.length && !state) {
+					errors.state = 'State / County is required for this country.';
+				}
 			}
 
-			var lastName = $.trim($form.find('[name="last_name"]').val());
-			if (!lastName) {
-				errors.last_name = 'Last Name is a required field.';
-			}
-
-			var country = $.trim($form.find('[name="country"]').val());
-			if (!country) {
-				errors.country = 'Please choose a valid country / region.';
-			}
-
-			var address1 = $.trim($form.find('[name="address_1"]').val());
-			if (!address1) {
-				errors.address_1 = 'Street Address is a required field.';
-			}
-
-			var city = $.trim($form.find('[name="city"]').val());
-			if (!city) {
-				errors.city = 'Town / City is a required field.';
-			}
-
-			var postalCode = $.trim($form.find('[name="postal_code"]').length ? $form.find('[name="postal_code"]').val() : $form.find('[name="postcode"]').val());
-			if (!postalCode) {
-				errors.postal_code = 'Postcode / ZIP is a required field.';
-			}
-
-			var state = $.trim($form.find('[name="state"]').val());
-			var $stateSelect = $form.find('select[name="state"]');
-			if ($stateSelect.length && !state) {
-				errors.state = 'State / County is required for this country.';
-			}
-
-			// Email Address is strictly mandatory
+			// Email validation: required only when validateRequired is true, format checked if entered
 			var rawEmail = $.trim($form.find('[name="email"]').val());
 			if (!rawEmail) {
-				errors.email = 'Email Address is a required field.';
+				if (validateRequired) {
+					errors.email = 'Email Address is a required field.';
+				}
 			} else if (!emailRegex.test(rawEmail)) {
 				errors.email = 'Please enter a valid email address.';
 			}
@@ -275,6 +289,20 @@
 		}
 
 		/**
+		 * Helper: Update default badge on address summary card.
+		 */
+		function updateSummaryBadge(type, isDefault) {
+			var $headerRow = $('#sab_' + type + '_summary_box .sab-summary-header-row');
+			$headerRow.find('.sab-default-badge').remove();
+			if (isDefault) {
+				var badgeText = (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.i18n && sab_checkout_params.i18n.default_badge)
+					? sab_checkout_params.i18n.default_badge
+					: 'Default';
+				$headerRow.append('<span class="sab-badge sab-default-badge">' + badgeText + '</span>');
+			}
+		}
+
+		/**
 		 * 1. Checkout Address Selector Dropdown Change Handler
 		 */
 		$(document).on('change', '.sab-checkout-address-dropdown', function() {
@@ -286,18 +314,40 @@
 				? $('.woocommerce-billing-fields__field-wrapper')
 				: $('.woocommerce-shipping-fields__field-wrapper');
 			var $actions = $('#sab_' + type + '_inline_actions');
+			var $saveWrapper = $('.sab-checkout-save-' + type);
 			var $summaryBox = $('#sab_' + type + '_summary_box');
 
 			if (val === 'new') {
+				var prevId = $select.data('current-val') || $('#sab_' + type + '_address_id').val();
+				if (prevId && prevId !== 'new') {
+					$select.data('prev-val', prevId);
+				}
 				$('#sab_' + type + '_address_id').val('');
 				$summaryBox.hide();
 				clearCheckoutFields(prefix);
+
+				// Ensure action buttons are placed at bottom of form after fields and save checkbox
+				if ($actions.length) {
+					if ($saveWrapper.length) {
+						$saveWrapper.after($actions);
+					} else if ($fieldWrapper.length) {
+						$fieldWrapper.after($actions);
+					}
+				}
+
 				$fieldWrapper.addClass('sab-form-expanded').removeClass('sab-form-collapsed').slideDown(250);
-				$actions.hide();
-				$('.sab-checkout-save-' + type).addClass('sab-form-expanded').removeClass('sab-form-collapsed').slideDown();
+				$saveWrapper.addClass('sab-form-expanded').removeClass('sab-form-collapsed').slideDown(250);
+				$actions.addClass('sab-form-expanded').removeClass('sab-form-collapsed').slideDown(250);
+
+				var $firstInput = $('#' + prefix + '_first_name');
+				if ($firstInput.length) {
+					$firstInput.trigger('focus');
+				}
 				return;
 			}
 
+			$select.data('current-val', val);
+			$select.data('prev-val', val);
 			$('#sab_' + type + '_address_id').val(val);
 
 			var $selectedOption = $select.find('option:selected');
@@ -306,10 +356,11 @@
 			if (rawAddress) {
 				populateCheckoutFields(prefix, rawAddress);
 				$('#sab_' + type + '_summary_text').html(formatAddressSummary(rawAddress, type));
+				updateSummaryBadge(type, parseInt(rawAddress.is_default, 10) === 1);
 				$summaryBox.show();
-				$actions.hide();
+				$actions.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
 				$fieldWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
-				$('.sab-checkout-save-' + type).removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp();
+				$saveWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp();
 			} else if (val) {
 				// Fallback AJAX fetch
 				$.ajax({
@@ -332,9 +383,9 @@
 							});
 							$(document.body).trigger('update_checkout');
 							$summaryBox.show();
-							$actions.hide();
+							$actions.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
 							$fieldWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
-							$('.sab-checkout-save-' + type).removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp();
+							$saveWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp();
 						}
 					}
 				});
@@ -360,29 +411,39 @@
 					: $('.woocommerce-shipping-fields__field-wrapper');
 				var $actions = $('#sab_' + type + '_inline_actions');
 
-				// Ensure inline action buttons are placed at the bottom below all fields
-				if ($actions.length && $fieldWrapper.length && !$fieldWrapper.find('#sab_' + type + '_inline_actions').length) {
-					$fieldWrapper.append($actions);
+				// Ensure inline action buttons are placed at the bottom of the edit form, after all address fields
+				var $saveWrapper = $('.sab-checkout-save-' + type);
+				if ($actions.length) {
+					if ($saveWrapper.length) {
+						$saveWrapper.after($actions);
+					} else if ($fieldWrapper.length) {
+						$fieldWrapper.after($actions);
+					}
 				}
 
 				if ($dropdown.length) {
 					var val = $dropdown.val();
 					if (val && val !== 'new') {
+						$dropdown.data('current-val', val);
+						$dropdown.data('prev-val', val);
 						$('#sab_' + type + '_address_id').val(val);
 						var $opt = $dropdown.find('option:selected');
 						var raw = $opt.data('address');
 						if (raw) {
 							populateCheckoutFields(prefix, raw);
 							$('#sab_' + type + '_summary_text').html(formatAddressSummary(raw, type));
+							updateSummaryBadge(type, parseInt(raw.is_default, 10) === 1);
 						}
 						// Initially display selected address as address summary, hide form fields
 						$summaryBox.show();
 						$fieldWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed').hide();
-						$actions.hide();
 						$('.sab-checkout-save-' + type).removeClass('sab-form-expanded').addClass('sab-form-collapsed').hide();
+						$actions.removeClass('sab-form-expanded').addClass('sab-form-collapsed').hide();
 					} else if (val === 'new') {
 						$summaryBox.hide();
 						$fieldWrapper.addClass('sab-form-expanded').removeClass('sab-form-collapsed').show();
+						$('.sab-checkout-save-' + type).addClass('sab-form-expanded').removeClass('sab-form-collapsed').show();
+						$actions.addClass('sab-form-expanded').removeClass('sab-form-collapsed').show();
 					}
 				}
 			});
@@ -405,11 +466,16 @@
 			var $fieldWrapper = (type === 'billing')
 				? $('.woocommerce-billing-fields__field-wrapper')
 				: $('.woocommerce-shipping-fields__field-wrapper');
+			var $saveWrapper = $('.sab-checkout-save-' + type);
 			var $actions = $('#sab_' + type + '_inline_actions');
 
-			// Make sure actions are inside the bottom of the field wrapper
-			if ($actions.length && !$fieldWrapper.find('#sab_' + type + '_inline_actions').length) {
-				$fieldWrapper.append($actions);
+			// Ensure inline action buttons are placed at the bottom of the edit form, after all address fields
+			if ($actions.length) {
+				if ($saveWrapper.length) {
+					$saveWrapper.after($actions);
+				} else if ($fieldWrapper.length) {
+					$fieldWrapper.after($actions);
+				}
 			}
 
 			// Save backup snapshot of current field values in case user clicks Cancel
@@ -424,9 +490,11 @@
 
 			// Open complete corresponding address form below that address summary
 			$fieldWrapper.addClass('sab-form-expanded').removeClass('sab-form-collapsed');
-			$('.sab-checkout-save-' + type).addClass('sab-form-expanded').removeClass('sab-form-collapsed');
-			$actions.show();
+			$saveWrapper.addClass('sab-form-expanded').removeClass('sab-form-collapsed');
+			$actions.addClass('sab-form-expanded').removeClass('sab-form-collapsed');
 			$fieldWrapper.slideDown(250);
+			$saveWrapper.slideDown(250);
+			$actions.slideDown(250);
 
 			var $firstInput = $('#' + prefix + '_first_name');
 			if ($firstInput.length) {
@@ -440,10 +508,38 @@
 		$(document).on('click', '.sab-inline-cancel-btn', function(e) {
 			e.preventDefault();
 			var type = $(this).data('type') || 'billing';
+			var prefix = (type === 'shipping') ? 'shipping' : 'billing';
+			var $dropdown = $('#sab_' + type + '_address_select');
 			var $fieldWrapper = (type === 'billing')
 				? $('.woocommerce-billing-fields__field-wrapper')
 				: $('.woocommerce-shipping-fields__field-wrapper');
 			var $actions = $('#sab_' + type + '_inline_actions');
+			var $summaryBox = $('#sab_' + type + '_summary_box');
+
+			// Clear validation error highlights
+			$fieldWrapper.find('.sab-field-error-message').remove();
+			$fieldWrapper.find('.sab-has-error').removeClass('sab-has-error woocommerce-invalid');
+			$fieldWrapper.find('.sab-input-error').removeClass('sab-input-error');
+
+			if ($dropdown.val() === 'new') {
+				// Revert new address form without saving
+				var prevVal = $dropdown.data('prev-val') || $dropdown.data('current-val');
+				if (!prevVal || prevVal === 'new') {
+					prevVal = $dropdown.find('option:not([value="new"]):first').val();
+				}
+				if (prevVal && prevVal !== 'new') {
+					$dropdown.val(prevVal).trigger('change');
+				} else {
+					$fieldWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
+					$('.sab-checkout-save-' + type).removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
+					$actions.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
+					if (type === 'shipping') {
+						$('.shipping_address').show();
+					}
+					$summaryBox.show();
+				}
+				return;
+			}
 
 			// Restore backup values
 			var backup = $fieldWrapper.data('sab-backup');
@@ -459,16 +555,15 @@
 				});
 			}
 
-			// Clear validation error highlights
-			$fieldWrapper.find('.sab-field-error-message').remove();
-			$fieldWrapper.find('.sab-has-error').removeClass('sab-has-error woocommerce-invalid');
-			$fieldWrapper.find('.sab-input-error').removeClass('sab-input-error');
-
 			// Close editing form
 			$fieldWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed');
 			$('.sab-checkout-save-' + type).removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
-			$actions.hide();
+			$actions.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
 			$fieldWrapper.slideUp(250);
+			if (type === 'shipping') {
+				$('.shipping_address').show();
+			}
+			$summaryBox.show();
 		});
 
 		/**
@@ -476,42 +571,62 @@
 		 */
 		$(document).on('click', '.sab-inline-save-btn', function(e) {
 			e.preventDefault();
-			var type = $(this).data('type') || 'billing';
+			var $saveBtn = $(this);
+			var type = $saveBtn.data('type') || 'billing';
 			var prefix = (type === 'shipping') ? 'shipping' : 'billing';
+			var $dropdown = $('#sab_' + type + '_address_select');
 			var $fieldWrapper = (type === 'billing')
 				? $('.woocommerce-billing-fields__field-wrapper')
-				: $('.woocommerce-shipping-fields__field-wrapper, .shipping_address');
+				: $('.woocommerce-shipping-fields__field-wrapper');
 			var $actions = $('#sab_' + type + '_inline_actions');
+			var isNew = ($dropdown.val() === 'new');
 
 			// Validate fields
 			var errors = {};
 			var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			var validateRequired = (typeof sab_checkout_params !== 'undefined' && typeof sab_checkout_params.validate_required_fields !== 'undefined')
+				? !!sab_checkout_params.validate_required_fields
+				: true;
 
-			var firstName = $.trim($('#' + prefix + '_first_name').val());
-			if (!firstName) errors[prefix + '_first_name'] = 'First Name is a required field.';
+			if (validateRequired) {
+				var firstName = $.trim($('#' + prefix + '_first_name').val());
+				if (!firstName) errors[prefix + '_first_name'] = 'First Name is a required field.';
 
-			var lastName = $.trim($('#' + prefix + '_last_name').val());
-			if (!lastName) errors[prefix + '_last_name'] = 'Last Name is a required field.';
+				var lastName = $.trim($('#' + prefix + '_last_name').val());
+				if (!lastName) errors[prefix + '_last_name'] = 'Last Name is a required field.';
 
-			var country = $.trim($('#' + prefix + '_country').val());
-			if (!country) errors[prefix + '_country'] = 'Country / Region is a required field.';
+				var country = $.trim($('#' + prefix + '_country').val());
+				if (!country) errors[prefix + '_country'] = 'Country / Region is a required field.';
 
-			var address1 = $.trim($('#' + prefix + '_address_1').val());
-			if (!address1) errors[prefix + '_address_1'] = 'Street Address is a required field.';
+				var address1 = $.trim($('#' + prefix + '_address_1').val());
+				if (!address1) errors[prefix + '_address_1'] = 'Street Address is a required field.';
 
-			var city = $.trim($('#' + prefix + '_city').val());
-			if (!city) errors[prefix + '_city'] = 'Town / City is a required field.';
+				var city = $.trim($('#' + prefix + '_city').val());
+				if (!city) errors[prefix + '_city'] = 'Town / City is a required field.';
 
-			var postcode = $.trim($('#' + prefix + '_postcode').val());
-			if (!postcode) errors[prefix + '_postcode'] = 'Postcode / ZIP is a required field.';
+				var postcode = $.trim($('#' + prefix + '_postcode').val());
+				if (!postcode) errors[prefix + '_postcode'] = 'Postcode / ZIP is a required field.';
 
-			if (type === 'billing') {
-				var email = $.trim($('#billing_email').val());
-				if (!email) {
-					errors['billing_email'] = 'Email Address is a required field.';
-				} else if (!emailRegex.test(email)) {
-					errors['billing_email'] = 'Please enter a valid email address.';
+				var state = $.trim($('#' + prefix + '_state').val());
+				var $stateSelect = $('#' + prefix + '_state');
+				if ($stateSelect.is('select') && !state) {
+					errors[prefix + '_state'] = 'State / County is required for this country.';
 				}
+			}
+
+			// Email address validation: required when validateRequired is true, format checked if entered
+			var $emailInput = (type === 'billing' || $('#' + prefix + '_email').length)
+				? $('#' + prefix + '_email')
+				: $('#billing_email');
+			var emailVal = $emailInput.length ? $.trim($emailInput.val()) : '';
+			var emailFieldId = $emailInput.length ? $emailInput.attr('id') : prefix + '_email';
+
+			if (!emailVal) {
+				if (validateRequired) {
+					errors[emailFieldId] = 'Email Address is a required field.';
+				}
+			} else if (!emailRegex.test(emailVal)) {
+				errors[emailFieldId] = 'Please enter a valid email address.';
 			}
 
 			// Clear old error highlights
@@ -542,27 +657,177 @@
 				return false;
 			}
 
-			// Valid: construct updated address object
+			// If customer is entering a new address, save it via AJAX only if saving at checkout is enabled and limit not reached
+			if (isNew) {
+				var enableCheckoutSave = (typeof sab_checkout_params !== 'undefined' && typeof sab_checkout_params.enable_checkout_save !== 'undefined')
+					? !!sab_checkout_params.enable_checkout_save
+					: true;
+				var canAddAddress = true;
+				if (typeof sab_checkout_params !== 'undefined') {
+					if (type === 'billing' && typeof sab_checkout_params.can_add_billing !== 'undefined') {
+						canAddAddress = !!sab_checkout_params.can_add_billing;
+					} else if (type === 'shipping' && typeof sab_checkout_params.can_add_shipping !== 'undefined') {
+						canAddAddress = !!sab_checkout_params.can_add_shipping;
+					} else if (typeof sab_checkout_params.can_add_address !== 'undefined') {
+						canAddAddress = !!sab_checkout_params.can_add_address;
+					}
+				}
+
+				// If saving to address book is disabled or limit reached, apply directly to current checkout without saving to DB
+				if (!enableCheckoutSave || !canAddAddress) {
+					var tempAddr = {
+						first_name:   firstName || $.trim($('#' + prefix + '_first_name').val()),
+						last_name:    lastName || $.trim($('#' + prefix + '_last_name').val()),
+						company:      $('#' + prefix + '_company').val() || '',
+						country:      country || $.trim($('#' + prefix + '_country').val()),
+						address_1:    address1 || $.trim($('#' + prefix + '_address_1').val()),
+						address_2:    $('#' + prefix + '_address_2').val() || '',
+						city:         city || $.trim($('#' + prefix + '_city').val()),
+						state:        state || $.trim($('#' + prefix + '_state').val()),
+						postal_code:  postcode || $.trim($('#' + prefix + '_postcode').val()),
+						postcode:     postcode || $.trim($('#' + prefix + '_postcode').val()),
+						phone:        $('#' + prefix + '_phone').val() || '',
+						email:        emailVal,
+						nickname:     $('#sab_nickname_' + type).val() || (type === 'billing' ? 'Billing Address' : 'Shipping Address')
+					};
+
+					populateCheckoutFields(prefix, tempAddr);
+					$('#sab_' + type + '_summary_text').html(formatAddressSummary(tempAddr, type));
+					updateSummaryBadge(type, false);
+					if (type === 'shipping') {
+						$('.shipping_address').show();
+					}
+					$('#sab_' + type + '_summary_box').show();
+					$fieldWrapper.removeClass('sab-form-expanded').slideUp(250);
+					$actions.removeClass('sab-form-expanded').slideUp(250);
+					$(document.body).trigger('update_checkout');
+					return;
+				}
+
+				var origText = $saveBtn.text();
+				var savingText = (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.i18n && sab_checkout_params.i18n.saving)
+					? sab_checkout_params.i18n.saving
+					: 'Saving...';
+				$saveBtn.prop('disabled', true).text(savingText);
+
+				var postData = {
+					action:       'sab_save_checkout_address',
+					nonce:        sab_checkout_params.nonce,
+					address_type: type,
+					first_name:   firstName,
+					last_name:    lastName,
+					company:      $('#' + prefix + '_company').val() || '',
+					country:      country,
+					address_1:    address1,
+					address_2:    $('#' + prefix + '_address_2').val() || '',
+					city:         city,
+					state:        state,
+					postal_code:  postcode,
+					postcode:     postcode,
+					phone:        $('#' + prefix + '_phone').val() || '',
+					email:        emailVal,
+					nickname:     $('#sab_nickname_' + type).val() || ''
+				};
+
+				$.ajax({
+					url: sab_checkout_params.ajax_url,
+					type: 'POST',
+					dataType: 'json',
+					data: postData,
+					success: function(res) {
+						$saveBtn.prop('disabled', false).text(origText);
+						if (res.success && res.data) {
+							var newId   = res.data.address_id;
+							var rawAddr = res.data.address;
+							var label   = res.data.label;
+
+							// Update Dropdown with newly saved address option
+							if ($dropdown.length) {
+								var $existingOpt = $dropdown.find('option[value="' + newId + '"]');
+								if (!$existingOpt.length) {
+									var $newOpt = $('<option></option>')
+										.val(newId)
+										.text(label)
+										.attr('data-address', JSON.stringify(rawAddr))
+										.data('address', rawAddr);
+									var $newOptionPlaceholder = $dropdown.find('option[value="new"]');
+									if ($newOptionPlaceholder.length) {
+										$newOptionPlaceholder.before($newOpt);
+									} else {
+										$dropdown.append($newOpt);
+									}
+								}
+								$dropdown.val(newId);
+								$dropdown.data('current-val', newId);
+								$dropdown.data('prev-val', newId);
+							}
+
+							$('#sab_' + type + '_address_id').val(newId);
+
+							// Update address summary text, badge, and display
+							$('#sab_' + type + '_summary_text').html(formatAddressSummary(rawAddr, type));
+							updateSummaryBadge(type, parseInt(res.data.is_default, 10) === 1);
+							if (type === 'shipping') {
+								$('.shipping_address').show();
+							}
+							$('#sab_' + type + '_summary_box').show();
+
+							// Trigger checkout calculations update
+							$(document.body).trigger('update_checkout');
+
+							// Close form
+							$fieldWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
+							$('.sab-checkout-save-' + type).removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
+							$actions.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
+						} else {
+							if (res.data && res.data.errors) {
+								var srvErrors = {};
+								$.each(res.data.errors, function(fKey, fMsg) {
+									var inputId = prefix + '_' + fKey;
+									if ($('#' + inputId).length) {
+										srvErrors[inputId] = fMsg;
+									} else if ($('#' + fKey).length) {
+										srvErrors[fKey] = fMsg;
+									} else if (fKey === 'email') {
+										srvErrors[emailFieldId] = fMsg;
+									}
+								});
+								applyFormErrors($fieldWrapper, srvErrors);
+							}
+						}
+					},
+					error: function() {
+						$saveBtn.prop('disabled', false).text(origText);
+						alert('An error occurred while saving your address. Please try again.');
+					}
+				});
+				return;
+			}
+
+			// Valid: editing existing address
 			var updatedAddr = {
-				first_name:  $('#' + prefix + '_first_name').val() || '',
-				last_name:   $('#' + prefix + '_last_name').val() || '',
+				first_name:  firstName,
+				last_name:   lastName,
 				company:     $('#' + prefix + '_company').val() || '',
-				country:     $('#' + prefix + '_country').val() || '',
-				address_1:   $('#' + prefix + '_address_1').val() || '',
+				country:     country,
+				address_1:   address1,
 				address_2:   $('#' + prefix + '_address_2').val() || '',
-				city:        $('#' + prefix + '_city').val() || '',
-				state:       $('#' + prefix + '_state').val() || '',
-				postal_code: $('#' + prefix + '_postcode').val() || '',
-				postcode:    $('#' + prefix + '_postcode').val() || '',
+				city:        city,
+				state:       state,
+				postal_code: postcode,
+				postcode:    postcode,
 				phone:       $('#' + prefix + '_phone').val() || '',
-				email:       $('#' + prefix + '_email').val() || ''
+				email:       emailVal
 			};
 
 			// Update dropdown option data-address & label
-			var $dropdown = $('#sab_' + type + '_address_select');
 			if ($dropdown.length) {
 				var $opt = $dropdown.find('option:selected');
 				if ($opt.length && $opt.val() !== 'new') {
+					var origData = $opt.data('address');
+					if (origData && origData.is_default !== undefined) {
+						updatedAddr.is_default = origData.is_default;
+					}
 					$opt.data('address', updatedAddr);
 					$opt.attr('data-address', JSON.stringify(updatedAddr));
 					var curText = $opt.text();
@@ -574,6 +839,9 @@
 
 			// Update address summary text and display
 			$('#sab_' + type + '_summary_text').html(formatAddressSummary(updatedAddr, type));
+			if (type === 'shipping') {
+				$('.shipping_address').show();
+			}
 			$('#sab_' + type + '_summary_box').show();
 
 			// Trigger checkout calculations update
@@ -582,8 +850,52 @@
 			// Close editing form
 			$fieldWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed');
 			$('.sab-checkout-save-' + type).removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
-			$actions.hide();
+			$actions.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
 			$fieldWrapper.slideUp(250);
+		});
+
+		/**
+		 * 6. Harmonize "Ship to a different address?" checkbox with SAB Shipping Address Summary
+		 */
+		$(document).on('change', '#ship-to-different-address-checkbox', function() {
+			var isChecked = $(this).is(':checked');
+			if (isChecked) {
+				var $shippingAddress = $('.shipping_address');
+				$shippingAddress.show();
+				var $dropdown = $('#sab_shipping_address_select');
+				var $summaryBox = $('#sab_shipping_summary_box');
+				var $fieldWrapper = $('.woocommerce-shipping-fields__field-wrapper');
+				var $actions = $('#sab_shipping_inline_actions');
+				var $saveWrapper = $('.sab-checkout-save-shipping');
+
+				if ($dropdown.length) {
+					var val = $dropdown.val();
+					if (val && val !== 'new') {
+						var $opt = $dropdown.find('option:selected');
+						var raw = $opt.data('address');
+						if (raw) {
+							populateCheckoutFields('shipping', raw);
+							$('#sab_shipping_summary_text').html(formatAddressSummary(raw, 'shipping'));
+							updateSummaryBadge('shipping', parseInt(raw.is_default, 10) === 1);
+						}
+						if (!$fieldWrapper.hasClass('sab-form-expanded')) {
+							$summaryBox.show();
+							$fieldWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed').hide();
+							$actions.removeClass('sab-form-expanded').addClass('sab-form-collapsed').hide();
+							$saveWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed').hide();
+						} else {
+							$summaryBox.show();
+							$fieldWrapper.show();
+							$actions.show();
+						}
+					} else if (val === 'new') {
+						$summaryBox.hide();
+						$fieldWrapper.addClass('sab-form-expanded').removeClass('sab-form-collapsed').show();
+						$actions.addClass('sab-form-expanded').removeClass('sab-form-collapsed').show();
+						$saveWrapper.addClass('sab-form-expanded').removeClass('sab-form-collapsed').show();
+					}
+				}
+			}
 		});
 
 		/**
@@ -613,7 +925,27 @@
 		// Click "Add New Address" button
 		$(document).on('click', '.sab-add-new-address-btn', function(e) {
 			e.preventDefault();
+
 			var type = $(this).data('type') || 'shipping';
+
+			if (typeof sab_checkout_params !== 'undefined') {
+				if (sab_checkout_params.enable_checkout_save === false) {
+					alert('Saving addresses at checkout is disabled.');
+					return false;
+				}
+				var canAddForType = (type === 'billing') ? sab_checkout_params.can_add_billing : sab_checkout_params.can_add_shipping;
+				if (typeof canAddForType === 'undefined') {
+					canAddForType = sab_checkout_params.can_add_address;
+				}
+				var limitMsgForType = (type === 'billing') ? sab_checkout_params.limit_message_billing : sab_checkout_params.limit_message_shipping;
+				if (!limitMsgForType) {
+					limitMsgForType = sab_checkout_params.limit_message;
+				}
+				if (canAddForType === false && sab_checkout_params.max_addresses > 0) {
+					alert(limitMsgForType || 'You have reached the maximum limit of saved addresses.');
+					return false;
+				}
+			}
 			var $modal = $('#sab-checkout-address-modal');
 			if (!$modal.length) {
 				return;
@@ -643,6 +975,10 @@
 
 			// Pre-select type radio & show options
 			$modal.find('input[name="address_type"][value="' + type + '"]').prop('checked', true);
+			if (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.max_addresses > 0) {
+				$modal.find('input[name="address_type"][value="billing"]').prop('disabled', sab_checkout_params.can_add_billing === false);
+				$modal.find('input[name="address_type"][value="shipping"]').prop('disabled', sab_checkout_params.can_add_shipping === false);
+			}
 			$('#sab_modal_type_row').show();
 			$('#sab_modal_default_row').show();
 
@@ -759,6 +1095,22 @@
 			$('body').removeClass('sab-modal-open');
 		});
 
+		$(document).on('change', '#sab-checkout-modal-form input[name="address_type"]', function() {
+			var selectedType = $(this).val();
+			var $notice = $('.sab-modal-notice');
+			if (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.max_addresses > 0) {
+				var canAddType = (selectedType === 'billing') ? sab_checkout_params.can_add_billing : sab_checkout_params.can_add_shipping;
+				if (canAddType === false) {
+					var limitMsg = (selectedType === 'billing') ? sab_checkout_params.limit_message_billing : sab_checkout_params.limit_message_shipping;
+					$notice.removeClass('sab-notice-success').addClass('sab-notice-error').html(limitMsg || sab_checkout_params.limit_message).show();
+					$('#sab-modal-submit-btn').prop('disabled', true);
+				} else {
+					$notice.hide().empty();
+					$('#sab-modal-submit-btn').prop('disabled', false);
+				}
+			}
+		});
+
 		// Close modal when backdrop clicked
 		$(document).on('click', '#sab-checkout-address-modal', function(e) {
 			if ($(e.target).is('#sab-checkout-address-modal')) {
@@ -781,6 +1133,18 @@
 			var prefix = (type === 'shipping') ? 'shipping' : 'billing';
 
 			$notice.hide().empty();
+
+			if (mode === 'add' && typeof sab_checkout_params !== 'undefined') {
+				var canAddType = (type === 'billing') ? sab_checkout_params.can_add_billing : sab_checkout_params.can_add_shipping;
+				if (typeof canAddType === 'undefined') {
+					canAddType = sab_checkout_params.can_add_address;
+				}
+				if (canAddType === false && sab_checkout_params.max_addresses > 0) {
+					var limitMsg = (type === 'billing') ? sab_checkout_params.limit_message_billing : sab_checkout_params.limit_message_shipping;
+					$notice.removeClass('sab-notice-success').addClass('sab-notice-error').html(limitMsg || sab_checkout_params.limit_message).show();
+					return false;
+				}
+			}
 
 			// 1. Perform client-side validation
 			var clientErrors = validateAddressForm($form);
@@ -880,7 +1244,7 @@
 			);
 
 			$.ajax({
-				url: sab_checkout_params.ajax_url,
+				url: (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.ajax_url) ? sab_checkout_params.ajax_url : '/wp-admin/admin-ajax.php',
 				type: 'POST',
 				dataType: 'json',
 				data: $form.serialize(),

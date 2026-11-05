@@ -18,6 +18,9 @@ $selector_label = ( 'billing' === $type )
 $btn_label      = ( 'billing' === $type )
 	? __( '+ Add New Billing Address', 'smart-address-book' )
 	: __( '+ Add New Shipping Address', 'smart-address-book' );
+
+$enable_checkout_save = 'yes' === get_option( 'sab_enable_checkout_save', 'yes' );
+$can_add_address      = SAB_Database::can_add_address( get_current_user_id(), $type );
 ?>
 
 <div class="sab-checkout-selector-container sab-checkout-<?php echo esc_attr( $type ); ?>-selector" data-type="<?php echo esc_attr( $type ); ?>">
@@ -25,9 +28,11 @@ $btn_label      = ( 'billing' === $type )
 		<label for="<?php echo esc_attr( $selector_id ); ?>" class="sab-selector-label" style="font-weight: 600; margin-bottom: 0;">
 			<?php echo esc_html( $selector_label ); ?>
 		</label>
+		<?php if ( $enable_checkout_save && $can_add_address ) : ?>
 		<button type="button" class="button sab-add-new-address-btn" data-type="<?php echo esc_attr( $type ); ?>" style="font-size: 13px; padding: 4px 10px; cursor: pointer;">
 			<?php echo esc_html( $btn_label ); ?>
 		</button>
+		<?php endif; ?>
 	</div>
 	<p class="form-row form-row-wide">
 		<select id="<?php echo esc_attr( $selector_id ); ?>" class="sab-checkout-address-dropdown select" data-type="<?php echo esc_attr( $type ); ?>">
@@ -45,7 +50,7 @@ $btn_label      = ( 'billing' === $type )
 				$label_parts[] = $addr->city . ( $addr->postal_code ? ' ' . $addr->postal_code : '' );
 
 				$display_label = implode( ' — ', array_filter( $label_parts ) );
-				if ( (int) $addr->id === $default_id || (int) $addr->is_default === 1 ) {
+				if ( (int) $addr->is_default === 1 ) {
 					$display_label .= ' (' . __( 'Default', 'smart-address-book' ) . ')';
 				} elseif ( ! empty( $addr->is_recently_used ) ) {
 					$display_label .= ' (' . __( 'Recently Used', 'smart-address-book' ) . ')';
@@ -55,7 +60,6 @@ $btn_label      = ( 'billing' === $type )
 					<?php echo esc_html( $display_label ); ?>
 				</option>
 			<?php endforeach; ?>
-			<option value="new"><?php esc_html_e( '+ Enter a new address', 'smart-address-book' ); ?></option>
 		</select>
 	</p>
 	<input type="hidden" name="sab_<?php echo esc_attr( $type ); ?>_address_id" id="sab_<?php echo esc_attr( $type ); ?>_address_id" value="<?php echo esc_attr( $default_id ); ?>" />
@@ -77,14 +81,16 @@ $btn_label      = ( 'billing' === $type )
 	<?php if ( 'billing' === $type && ! empty( $selected_addr ) ) : ?>
 		<style id="sab-billing-form-default-hide">
 			.woocommerce-billing-fields__field-wrapper:not(.sab-form-expanded),
-			.sab-checkout-save-billing:not(.sab-form-expanded) {
+			.sab-checkout-save-billing:not(.sab-form-expanded),
+			#sab_billing_inline_actions:not(.sab-form-expanded) {
 				display: none !important;
 			}
 		</style>
 	<?php elseif ( 'shipping' === $type && ! empty( $selected_addr ) ) : ?>
 		<style id="sab-shipping-form-default-hide">
 			.woocommerce-shipping-fields__field-wrapper:not(.sab-form-expanded),
-			.sab-checkout-save-shipping:not(.sab-form-expanded) {
+			.sab-checkout-save-shipping:not(.sab-form-expanded),
+			#sab_shipping_inline_actions:not(.sab-form-expanded) {
 				display: none !important;
 			}
 		</style>
@@ -96,7 +102,7 @@ $btn_label      = ( 'billing' === $type )
 					<span class="sab-summary-title">
 						<strong><?php echo esc_html( ( 'billing' === $type ) ? __( 'Billing Address', 'smart-address-book' ) : __( 'Shipping Address', 'smart-address-book' ) ); ?></strong>
 					</span>
-					<?php if ( $selected_addr && ( (int) $selected_addr->id === (int) $default_id || (int) $selected_addr->is_default === 1 ) ) : ?>
+					<?php if ( $selected_addr && (int) $selected_addr->is_default === 1 ) : ?>
 						<span class="sab-badge sab-default-badge"><?php esc_html_e( 'Default', 'smart-address-book' ); ?></span>
 					<?php endif; ?>
 				</div>

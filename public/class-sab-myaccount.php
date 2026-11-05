@@ -98,14 +98,14 @@ class SAB_MyAccount {
 
 		// Check limit if adding
 		if ( ! $address_id ) {
+			$type = sanitize_text_field( $_POST['address_type'] ?? 'shipping' );
+			$type = in_array( $type, array( 'billing', 'shipping' ), true ) ? $type : 'shipping';
+
 			$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
-			if ( $max_allowed > 0 ) {
-				$current_count = SAB_Database::get_address_count( $user_id );
-				if ( $current_count >= $max_allowed ) {
-					/* translators: %d: Maximum allowed addresses */
-					wc_add_notice( sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ), 'error' );
-					return;
-				}
+			if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $user_id, $type ) ) {
+				/* translators: 1: maximum allowed addresses, 2: address type */
+				wc_add_notice( sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses.', 'smart-address-book' ), $max_allowed, $type ), 'error' );
+				return;
 			}
 		}
 

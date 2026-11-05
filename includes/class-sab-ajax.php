@@ -55,14 +55,15 @@ class SAB_Ajax {
 			$target_user_id = absint( $_POST['user_id'] );
 		}
 
-		// Check address limits
+		// Check address limits for this specific type
+		$type = sanitize_text_field( $_POST['address_type'] ?? 'shipping' );
+		$type = in_array( $type, array( 'billing', 'shipping' ), true ) ? $type : 'shipping';
+
 		$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
-		if ( $max_allowed > 0 ) {
-			$current_count = SAB_Database::get_address_count( $target_user_id );
-			if ( $current_count >= $max_allowed ) {
-				/* translators: %d: Maximum allowed addresses */
-				wp_send_json_error( array( 'message' => sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ) ) );
-			}
+		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $target_user_id, $type ) ) {
+			/* translators: 1: maximum allowed addresses, 2: address type */
+			wp_send_json_error( array( 'message' => sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses.', 'smart-address-book' ), $max_allowed, $type ) ) );
+			return;
 		}
 
 		$raw_data = $_POST;
@@ -183,12 +184,24 @@ class SAB_Ajax {
 			wp_send_json_error( array( 'message' => __( 'You do not have permission to delete this address.', 'smart-address-book' ) ), 403 );
 		}
 
+		$was_default  = ( (int) $existing->is_default === 1 );
+		$address_type = $existing->address_type;
+
 		$deleted = SAB_Database::delete_address( $address_id );
 		if ( ! $deleted ) {
 			wp_send_json_error( array( 'message' => __( 'Could not delete address.', 'smart-address-book' ) ) );
 		}
 
-		wp_send_json_success( array( 'message' => __( 'Address deleted successfully.', 'smart-address-book' ) ) );
+		$new_default_id = (int) SAB_Database::$last_new_default_id;
+
+		wp_send_json_success(
+			array(
+				'message'        => __( 'Address deleted successfully.', 'smart-address-book' ),
+				'was_default'    => $was_default,
+				'new_default_id' => $new_default_id,
+				'address_type'   => $address_type,
+			)
+		);
 	}
 
 	/**
@@ -322,8 +335,22 @@ class SAB_Ajax {
 	public function ajax_save_checkout_address() {
 		$current_user_id = $this->verify_request( 'sab_checkout_nonce' );
 
+		// Check if saving at checkout is enabled
+		if ( 'yes' !== get_option( 'sab_enable_checkout_save', 'yes' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Saving addresses at checkout is disabled.', 'smart-address-book' ) ) );
+			return;
+		}
+
 		$type = sanitize_text_field( $_POST['address_type'] ?? 'shipping' );
 		$type = in_array( $type, array( 'billing', 'shipping' ), true ) ? $type : 'shipping';
+
+		// Check address limits for this specific type
+		$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
+		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $current_user_id, $type ) ) {
+			/* translators: 1: maximum allowed addresses, 2: address type */
+			wp_send_json_error( array( 'message' => sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses.', 'smart-address-book' ), $max_allowed, $type ) ) );
+			return;
+		}
 
 		$prefix = ( 'billing' === $type ) ? 'billing_' : 'shipping_';
 
@@ -336,7 +363,7 @@ class SAB_Ajax {
 			'last_name'    => sanitize_text_field( $_POST[ $prefix . 'last_name' ] ?? ( $_POST['last_name'] ?? '' ) ),
 			'company'      => sanitize_text_field( $_POST[ $prefix . 'company' ] ?? ( $_POST['company'] ?? '' ) ),
 			'phone'        => sanitize_text_field( $_POST[ $prefix . 'phone' ] ?? ( $_POST['phone'] ?? '' ) ),
-			'email'        => sanitize_email( $_POST[ $prefix . 'email' ] ?? ( $_POST['email'] ?? '' ) ),
+			'email'        => sanitize_email( $_POST[ $prefix . 'email' ] ?? ( $_POST['email'] ?? ( $_POST['billing_email'] ?? ( wp_get_current_user()->user_email ?? '' ) ) ) ),
 			'address_1'    => sanitize_text_field( $_POST[ $prefix . 'address_1' ] ?? ( $_POST['address_1'] ?? '' ) ),
 			'address_2'    => sanitize_text_field( $_POST[ $prefix . 'address_2' ] ?? ( $_POST['address_2'] ?? '' ) ),
 			'city'         => sanitize_text_field( $_POST[ $prefix . 'city' ] ?? ( $_POST['city'] ?? '' ) ),

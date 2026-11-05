@@ -10,6 +10,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class SAB_Database {
 
 	/**
+	 * Stores the ID of the new default address assigned during the last delete operation, if any.
+	 *
+	 * @var int
+	 */
+	public static $last_new_default_id = 0;
+
+	/**
 	 * Get the table name.
 	 *
 	 * @return string
@@ -479,24 +486,38 @@ class SAB_Database {
 			return false;
 		}
 
+		$user_id      = (int) $address->user_id;
+		$address_type = $address->address_type;
+		$was_default  = ( (int) $address->is_default === 1 );
+
+		// Check if it was considered default via fallback if not explicitly flagged
+		if ( ! $was_default ) {
+			$current_default = self::get_default_address( $user_id, $address_type );
+			if ( $current_default && (int) $current_default->id === $id ) {
+				$was_default = true;
+			}
+		}
+
 		$result = $wpdb->delete( $table_name, array( 'id' => $id ), array( '%d' ) );
 
 		if ( $result ) {
-			// If deleted address was default, set next available address as default
-			if ( (int) $address->is_default === 1 ) {
-				$next = $wpdb->get_row(
-					$wpdb->prepare(
-						"SELECT id FROM {$table_name} WHERE user_id = %d AND address_type = %s ORDER BY id DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-						$address->user_id,
-						$address->address_type
-					)
-				);
-				if ( $next ) {
-					self::set_default( $next->id, $address->user_id, $address->address_type );
+			$new_default_id = 0;
+
+			// If deleted address was default, automatically assign the next eligible address as new default
+			// using the existing address sort order (recently used order)
+			if ( $was_default ) {
+				$remaining_sorted = self::get_addresses_sorted( $user_id, $address_type );
+				if ( ! empty( $remaining_sorted ) ) {
+					// Select the first available address according to that existing sort order
+					$next_default = $remaining_sorted[0];
+					self::set_default( $next_default->id, $user_id, $address_type );
+					$new_default_id = (int) $next_default->id;
 				}
 			}
 
-			do_action( 'sab_address_deleted', $id, $address );
+			self::$last_new_default_id = $new_default_id;
+
+			do_action( 'sab_address_deleted', $id, $address, $new_default_id );
 			return true;
 		}
 
@@ -721,6 +742,33 @@ class SAB_Database {
 				$type
 			)
 		);
+	}
+
+	/**
+	 * Check if a user can add a new address based on maximum limit setting.
+	 * When type is specified, checks limit for that specific address type.
+	 *
+	 * @param int    $user_id User ID.
+	 * @param string $type Optional address type ('billing' or 'shipping').
+	 * @return bool True if user can add, false if maximum limit reached.
+	 */
+	public static function can_add_address( $user_id, $type = '' ) {
+		$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
+		if ( $max_allowed <= 0 ) {
+			return true;
+		}
+
+		if ( ! empty( $type ) ) {
+			$type          = in_array( $type, array( 'billing', 'shipping' ), true ) ? $type : 'billing';
+			$current_count = self::get_address_count_by_type( $user_id, $type );
+			return $current_count < $max_allowed;
+		}
+
+		// If no type specified, check if either type can still receive addresses
+		$billing_count  = self::get_address_count_by_type( $user_id, 'billing' );
+		$shipping_count = self::get_address_count_by_type( $user_id, 'shipping' );
+
+		return ( $billing_count < $max_allowed ) || ( $shipping_count < $max_allowed );
 	}
 }
 

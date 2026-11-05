@@ -97,6 +97,7 @@ class SAB_Admin {
 					'saving'         => __( 'Saving...', 'smart-address-book' ),
 					'success'        => __( 'Action completed successfully.', 'smart-address-book' ),
 					'error'          => __( 'An error occurred.', 'smart-address-book' ),
+					'default'        => __( 'Default', 'smart-address-book' ),
 				),
 			)
 		);
