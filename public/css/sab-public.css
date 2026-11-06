@@ -14,10 +14,29 @@
 	--sab-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+/* Box sizing and containment for all plugin elements */
+.sab-address-book-wrapper,
+.sab-address-book-wrapper *,
+.sab-address-form-wrapper,
+.sab-address-form-wrapper *,
+.sab-modal-dialog,
+.sab-modal-dialog *,
+.sab-checkout-selector-container,
+.sab-checkout-selector-container *,
+.sab-blocks-selector-wrapper,
+.sab-blocks-selector-wrapper * {
+	box-sizing: border-box;
+}
+
 /* Wrapper */
-.sab-address-book-wrapper {
+.sab-address-book-wrapper,
+.sab-address-form-wrapper {
 	margin: 20px 0;
+	width: 100%;
+	max-width: 100%;
 	font-family: inherit;
+	word-break: break-word;
+	overflow-wrap: break-word;
 }
 
 /* Header Bar */
@@ -30,18 +49,27 @@
 	margin-bottom: 25px;
 	padding-bottom: 15px;
 	border-bottom: 1px solid var(--sab-border);
+	width: 100%;
+	max-width: 100%;
+}
+
+.sab-header-title {
+	flex: 1 1 240px;
+	min-width: 0;
 }
 
 .sab-header-title h3 {
 	margin: 0 0 5px 0;
 	font-size: 24px;
 	color: #111;
+	word-break: break-word;
 }
 
 .sab-subtitle {
 	margin: 0;
 	color: #565959;
 	font-size: 14px;
+	word-break: break-word;
 }
 
 .sab-header-actions {
@@ -49,11 +77,14 @@
 	align-items: center;
 	gap: 10px;
 	flex-wrap: wrap;
+	max-width: 100%;
 }
 
 .sab-csv-actions {
 	display: flex;
 	gap: 6px;
+	flex-wrap: wrap;
+	max-width: 100%;
 }
 
 .sab-header-actions .button {
@@ -64,17 +95,24 @@
 	font-size: 13px;
 	border-radius: 4px;
 	cursor: pointer;
+	white-space: nowrap;
+	box-sizing: border-box;
+	min-height: 38px;
 }
 
 /* Search Box */
 .sab-search-wrapper {
 	position: relative;
 	margin-bottom: 25px;
+	width: 100%;
 	max-width: 500px;
+	box-sizing: border-box;
 }
 
 .sab-search-input {
-	width: 100%;
+	width: 100% !important;
+	max-width: 100% !important;
+	box-sizing: border-box !important;
 	padding: 10px 12px 10px 38px !important;
 	border: 1px solid var(--sab-border) !important;
 	border-radius: 6px !important;
@@ -101,6 +139,8 @@
 /* Section */
 .sab-section {
 	margin-bottom: 35px;
+	width: 100%;
+	max-width: 100%;
 }
 
 .sab-section-header {
@@ -108,6 +148,7 @@
 	align-items: center;
 	gap: 10px;
 	margin-bottom: 15px;
+	flex-wrap: wrap;
 }
 
 .sab-section-header h4 {
@@ -129,8 +170,10 @@
 /* Address Grid */
 .sab-address-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
 	gap: 20px;
+	width: 100%;
+	max-width: 100%;
 }
 
 /* Address Card */
@@ -145,6 +188,11 @@
 	justify-content: space-between;
 	transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 	position: relative;
+	min-width: 0;
+	max-width: 100%;
+	box-sizing: border-box;
+	word-break: break-word;
+	overflow-wrap: break-word;
 }
 
 .sab-card:hover {
@@ -162,9 +210,12 @@
 	display: flex;
 	justify-content: space-between;
 	align-items: flex-start;
+	gap: 8px;
+	flex-wrap: wrap;
 	margin-bottom: 12px;
 	padding-bottom: 8px;
 	border-bottom: 1px solid #f0f2f2;
+	width: 100%;
 }
 
 .sab-card-nickname {
@@ -173,6 +224,9 @@
 	gap: 5px;
 	color: #111;
 	font-size: 15px;
+	min-width: 0;
+	word-break: break-word;
+	overflow-wrap: break-word;
 }
 
 .sab-badge {
@@ -182,6 +236,8 @@
 	border-radius: 4px;
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
+	flex-shrink: 0;
+	white-space: nowrap;
 }
 
 .sab-default-badge {
@@ -197,10 +253,15 @@
 	font-size: 14px;
 	line-height: 1.5;
 	color: #333;
+	min-width: 0;
+	word-break: break-word;
+	overflow-wrap: break-word;
 }
 
 .sab-formatted-address {
 	margin-bottom: 10px;
+	word-break: break-word;
+	overflow-wrap: break-word;
 }
 
 .sab-card-meta {
@@ -210,6 +271,8 @@
 	display: flex;
 	align-items: center;
 	gap: 6px;
+	word-break: break-all;
+	overflow-wrap: break-word;
 }
 
 .sab-card-meta .dashicons {
@@ -217,26 +280,36 @@
 	width: 15px;
 	height: 15px;
 	color: #767676;
+	flex-shrink: 0;
 }
 
 /* Card Actions */
 .sab-card-actions {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 6px;
+	gap: 8px;
 	padding-top: 12px;
 	border-top: 1px solid #f0f2f2;
+	align-items: center;
+	width: 100%;
 }
 
 .sab-card-actions .button {
 	font-size: 12px;
-	padding: 4px 10px;
+	padding: 5px 12px;
+	min-height: 32px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	border-radius: 4px;
 	background: #fff;
 	border: 1px solid var(--sab-border);
 	color: #111;
 	cursor: pointer;
 	transition: background 0.15s, border-color 0.15s;
+	text-decoration: none;
+	box-sizing: border-box;
+	line-height: 1.3;
 }
 
 .sab-card-actions .button:hover {
@@ -261,6 +334,9 @@
 	background: #fafafa;
 	border: 1px dashed var(--sab-border);
 	border-radius: var(--sab-card-radius);
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
 }
 
 .sab-empty-state p {
@@ -271,63 +347,128 @@
 /* Form Styles */
 .sab-address-form-wrapper {
 	margin: 20px 0;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
 }
 
 .sab-form-header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	flex-wrap: wrap;
+	gap: 12px;
 	margin-bottom: 20px;
 	padding-bottom: 12px;
 	border-bottom: 1px solid var(--sab-border);
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .sab-form-header h3 {
 	margin: 0;
+	font-size: 22px;
+	word-break: break-word;
+}
+
+.sab-form-header .sab-back-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 36px;
+	padding: 6px 14px;
+	font-size: 13px;
+	box-sizing: border-box;
+}
+
+.sab-address-form {
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.sab-address-form .woocommerce-address-fields__field-wrapper {
+	max-width: 100%;
+	box-sizing: border-box;
 }
 
 .sab-address-form .form-row {
 	margin-bottom: 15px;
+	box-sizing: border-box;
+}
+
+.sab-address-form input.input-text,
+.sab-address-form select,
+.sab-address-form textarea,
+.sab-address-form .select2-container {
+	width: 100% !important;
+	max-width: 100% !important;
+	box-sizing: border-box !important;
+}
+
+.sab-address-form .sab-form-actions,
+.sab-address-form .form-row:last-child {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+	margin-top: 20px;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.sab-address-form .sab-form-actions .button,
+.sab-address-form .form-row:last-child .button {
+	margin-left: 0;
+	min-height: 40px;
+	padding: 8px 22px;
+	font-size: 14px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
 }
 
 .sab-cancel-btn {
-	margin-left: 10px;
+	margin-left: 0;
 }
 
 /* Checkout Selector */
-.sab-checkout-selector-container {
-	margin-bottom: 20px;
-	padding: 14px 16px;
-	background: #f7f9fa;
-	border: 1px solid var(--sab-border);
-	border-radius: 6px;
-}
-
+.sab-checkout-selector-container,
 .sab-blocks-selector-wrapper {
 	margin-bottom: 20px;
 	padding: 14px 16px;
 	background: #f7f9fa;
 	border: 1px solid var(--sab-border);
 	border-radius: 6px;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
 }
 
 .sab-selector-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 8px;
+	display: flex !important;
+	justify-content: space-between !important;
+	align-items: center !important;
+	flex-wrap: wrap !important;
+	gap: 8px !important;
+	margin-bottom: 8px !important;
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .sab-selector-actions {
 	display: flex;
 	gap: 8px;
 	align-items: center;
+	flex-wrap: wrap;
 }
 
 /* Address Summary Card */
 .sab-address-summary-box {
 	margin: 12px 0 16px 0;
 	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
 }
 
 .sab-summary-card {
@@ -341,6 +482,9 @@
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 	transition: all 0.2s ease;
 	gap: 15px;
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
 }
 
 .sab-summary-card:hover {
@@ -349,6 +493,9 @@
 
 .sab-summary-content {
 	flex: 1 1 auto;
+	min-width: 0;
+	word-break: break-word;
+	overflow-wrap: break-word;
 }
 
 .sab-summary-header-row {
@@ -356,17 +503,21 @@
 	align-items: center;
 	gap: 10px;
 	margin-bottom: 6px;
+	flex-wrap: wrap;
 }
 
 .sab-summary-title {
 	font-size: 14px;
 	color: #111;
+	word-break: break-word;
 }
 
 .sab-summary-text {
 	font-size: 13.5px;
 	line-height: 1.5;
 	color: #333;
+	word-break: break-word;
+	overflow-wrap: break-word;
 }
 
 .sab-summary-action {
@@ -383,6 +534,11 @@
 	font-size: 13px !important;
 	cursor: pointer !important;
 	transition: all 0.2s ease !important;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 32px;
+	box-sizing: border-box;
 }
 
 .sab-summary-edit-btn:hover {
@@ -404,6 +560,7 @@
 	padding-top: 12px;
 	border-top: 1px solid #e5e5e5;
 	box-sizing: border-box;
+	flex-wrap: wrap;
 }
 
 .sab-inline-save-btn,
@@ -411,6 +568,8 @@
 	font-weight: 600 !important;
 	padding: 8px 18px !important;
 	font-size: 14px !important;
+	min-height: 38px;
+	box-sizing: border-box;
 }
 
 .sab-inline-cancel-btn,
@@ -422,6 +581,8 @@
 	font-size: 14px !important;
 	border-radius: 4px !important;
 	cursor: pointer !important;
+	min-height: 38px;
+	box-sizing: border-box;
 }
 
 .sab-inline-cancel-btn:hover,
@@ -437,12 +598,22 @@
 	padding: 16px;
 	margin-top: 10px;
 	margin-bottom: 16px;
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
 }
 
 .sab-blocks-form-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 12px;
+	box-sizing: border-box;
+	width: 100%;
+}
+
+.sab-blocks-form-col {
+	min-width: 0;
+	box-sizing: border-box;
 }
 
 .sab-blocks-form-full {
@@ -459,6 +630,7 @@
 .sab-blocks-inline-edit-form input,
 .sab-blocks-inline-edit-form select {
 	width: 100%;
+	max-width: 100%;
 	padding: 8px 10px;
 	border: 1px solid #757575;
 	border-radius: 4px;
@@ -510,6 +682,7 @@
 	font-weight: 600 !important;
 	cursor: pointer !important;
 	transition: all 0.2s ease !important;
+	box-sizing: border-box;
 }
 
 .sab-add-new-address-btn:hover {
@@ -517,7 +690,7 @@
 	color: #fff !important;
 }
 
-/* Modal Overlay & Dialog */
+/* Modal Overlay & Dialog - Fixed to viewport without horizontal scrollbar */
 body.sab-modal-open {
 	overflow: hidden;
 }
@@ -526,8 +699,10 @@ body.sab-modal-open {
 	position: fixed;
 	top: 0;
 	left: 0;
-	width: 100vw;
-	height: 100vh;
+	right: 0;
+	bottom: 0;
+	width: 100%;
+	height: 100%;
 	background: rgba(0, 0, 0, 0.55);
 	z-index: 999999;
 	display: flex;
@@ -548,6 +723,8 @@ body.sab-modal-open {
 	flex-direction: column;
 	overflow: hidden;
 	animation: sabModalFadeIn 0.2s ease;
+	box-sizing: border-box;
+	margin: 0 auto;
 }
 
 @keyframes sabModalFadeIn {
@@ -568,12 +745,15 @@ body.sab-modal-open {
 	padding: 16px 20px;
 	border-bottom: 1px solid var(--sab-border);
 	background: #fafafa;
+	box-sizing: border-box;
+	width: 100%;
 }
 
 .sab-modal-header h3 {
 	margin: 0;
 	font-size: 18px;
 	color: #222;
+	word-break: break-word;
 }
 
 .sab-modal-close {
@@ -584,6 +764,8 @@ body.sab-modal-open {
 	color: #777;
 	cursor: pointer;
 	padding: 0 5px;
+	margin-left: 10px;
+	flex-shrink: 0;
 }
 
 .sab-modal-close:hover {
@@ -593,7 +775,10 @@ body.sab-modal-open {
 .sab-modal-body {
 	padding: 20px;
 	overflow-y: auto;
+	overflow-x: hidden;
 	flex: 1;
+	box-sizing: border-box;
+	width: 100%;
 }
 
 .sab-modal-notice {
@@ -601,6 +786,8 @@ body.sab-modal-open {
 	margin-bottom: 15px;
 	border-radius: 4px;
 	font-size: 13px;
+	box-sizing: border-box;
+	word-break: break-word;
 }
 
 .sab-modal-footer {
@@ -609,7 +796,21 @@ body.sab-modal-open {
 	border-top: 1px solid var(--sab-border);
 	display: flex;
 	justify-content: flex-end;
+	align-items: center;
 	gap: 10px;
+	flex-wrap: wrap;
+	box-sizing: border-box;
+	width: 100%;
+}
+
+.sab-modal-footer .button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 38px;
+	padding: 8px 18px;
+	font-size: 14px;
+	box-sizing: border-box;
 }
 
 .sab-modal-save-btn {
@@ -622,51 +823,110 @@ body.sab-modal-open {
 	background: var(--sab-primary-hover) !important;
 }
 
+/* Modal Form Grid */
+.sab-modal-form-grid {
+	box-sizing: border-box;
+	width: 100%;
+}
+
+.sab-modal-form-grid .form-row {
+	box-sizing: border-box;
+	margin-bottom: 12px;
+}
+
+.sab-modal-form-grid input.input-text,
+.sab-modal-form-grid select {
+	width: 100% !important;
+	max-width: 100% !important;
+	box-sizing: border-box !important;
+}
+
+.sab-radio-group {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.sab-radio-label {
+	display: inline-flex !important;
+	align-items: center;
+	gap: 6px;
+	margin-right: 0 !important;
+	font-weight: normal;
+	cursor: pointer;
+}
+
 /* CSV Import Preview Modal */
 .sab-import-modal-dialog {
 	max-width: 860px !important;
 	width: 95% !important;
+	box-sizing: border-box !important;
 }
 
 .sab-import-intro {
 	margin-bottom: 12px;
 	color: #555;
 	font-size: 14px;
+	word-break: break-word;
 }
 
 .sab-import-toolbar {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px;
 	padding: 8px 12px;
 	background: #f9fafb;
 	border: 1px solid var(--sab-border);
 	border-radius: 4px;
 	margin-bottom: 12px;
+	box-sizing: border-box;
+	width: 100%;
 }
 
 .sab-import-select-controls {
 	display: flex;
 	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.sab-import-select-controls .button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 32px;
+	padding: 4px 12px;
+	font-size: 13px;
+	box-sizing: border-box;
 }
 
 .sab-selected-counter {
 	font-size: 13px;
 	color: #374151;
+	white-space: nowrap;
 }
 
+/* CSV Import Table Container with Native Smooth Horizontal Scroll */
 .sab-import-table-container {
 	max-height: 360px;
+	overflow-x: auto;
 	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
 	border: 1px solid var(--sab-border);
 	border-radius: 4px;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
 }
 
 .sab-import-table {
 	width: 100%;
+	min-width: 620px;
 	border-collapse: collapse;
 	font-size: 13px;
 	background: #fff;
+	table-layout: auto;
 }
 
 .sab-import-table th {
@@ -678,12 +938,17 @@ body.sab-modal-open {
 	position: sticky;
 	top: 0;
 	z-index: 2;
+	white-space: nowrap;
+	box-sizing: border-box;
 }
 
 .sab-import-table td {
 	padding: 10px 12px;
 	vertical-align: middle;
 	border-bottom: 1px solid #e5e7eb;
+	box-sizing: border-box;
+	word-break: break-word;
+	overflow-wrap: break-word;
 }
 
 .sab-import-table tr:hover {
@@ -704,6 +969,7 @@ body.sab-modal-open {
 	display: inline-block;
 }
 
+/* CSV Import Confirmation Box */
 .sab-import-confirm-box {
 	margin-top: 15px;
 	padding: 14px 18px;
@@ -711,6 +977,8 @@ body.sab-modal-open {
 	border: 1px solid #fde68a;
 	border-radius: 6px;
 	animation: sabModalFadeIn 0.2s ease;
+	box-sizing: border-box;
+	width: 100%;
 }
 
 .sab-confirm-inner {
@@ -724,6 +992,14 @@ body.sab-modal-open {
 	font-size: 24px;
 	line-height: 1;
 	margin-top: 2px;
+	flex-shrink: 0;
+}
+
+.sab-confirm-text {
+	flex: 1 1 auto;
+	min-width: 0;
+	word-break: break-word;
+	overflow-wrap: break-word;
 }
 
 .sab-confirm-text p {
@@ -743,6 +1019,88 @@ body.sab-modal-open {
 	gap: 10px;
 	margin-top: 12px;
 	padding-left: 36px;
+	flex-wrap: wrap;
+	box-sizing: border-box;
+}
+
+.sab-confirm-buttons .button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 38px;
+	padding: 8px 18px;
+	font-size: 13.5px;
+	box-sizing: border-box;
+}
+
+/* CSV Import Modal Footer & Buttons */
+.sab-import-modal-dialog .sab-modal-footer,
+#sab-csv-import-modal .sab-modal-footer {
+	margin-top: 0;
+	padding: 18px 24px 22px;
+	border-top: 1px solid var(--sab-border);
+	background: #fafafa;
+	display: flex;
+	flex-direction: row;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 12px;
+	flex-shrink: 0;
+	box-sizing: border-box;
+	width: 100%;
+}
+
+.sab-import-modal-dialog .sab-modal-footer .button,
+#sab-csv-import-modal .sab-modal-footer .sab-import-cancel-btn,
+#sab-csv-import-modal .sab-modal-footer .sab-import-action-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 42px;
+	padding: 10px 24px;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+	border-radius: 5px;
+	cursor: pointer;
+	box-sizing: border-box;
+	margin: 0;
+	text-align: center;
+	white-space: nowrap;
+	text-decoration: none;
+	vertical-align: middle;
+	transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#sab-csv-import-modal .sab-modal-footer .sab-import-cancel-btn {
+	background: #fff;
+	border: 1px solid var(--sab-border);
+	color: #374151;
+}
+
+#sab-csv-import-modal .sab-modal-footer .sab-import-cancel-btn:hover {
+	background: #f3f4f6;
+	border-color: #9ca3af;
+	color: #111827;
+}
+
+#sab-csv-import-modal .sab-modal-footer .sab-import-action-btn {
+	background: var(--sab-primary) !important;
+	border: 1px solid var(--sab-primary) !important;
+	color: #fff !important;
+}
+
+#sab-csv-import-modal .sab-modal-footer .sab-import-action-btn:hover:not(:disabled) {
+	background: var(--sab-primary-hover) !important;
+	border-color: var(--sab-primary-hover) !important;
+	color: #fff !important;
+}
+
+#sab-csv-import-modal .sab-modal-footer .sab-import-action-btn:disabled,
+#sab-csv-import-modal .sab-modal-footer .sab-import-action-btn[disabled] {
+	opacity: 0.6;
+	cursor: not-allowed !important;
+	box-shadow: none !important;
 }
 
 .sab-checkout-selector-container label {
@@ -753,6 +1111,7 @@ body.sab-modal-open {
 
 .sab-checkout-address-dropdown {
 	width: 100% !important;
+	max-width: 100% !important;
 	padding: 8px 36px 8px 12px !important;
 	border: 1px solid var(--sab-border) !important;
 	border-radius: 4px !important;
@@ -766,6 +1125,7 @@ body.sab-modal-open {
 	-moz-appearance: none !important;
 	font-size: 14px !important;
 	cursor: pointer !important;
+	box-sizing: border-box !important;
 }
 
 .sab-checkout-save-wrapper {
@@ -774,14 +1134,21 @@ body.sab-modal-open {
 	background: #fafafa;
 	border: 1px dashed var(--sab-border);
 	border-radius: 4px;
+	box-sizing: border-box;
+	max-width: 100%;
 }
 
 /* Notices */
-.sab-notice {
+.sab-notice,
+.sab-limit-notice {
 	padding: 10px 15px;
 	margin-bottom: 15px;
 	border-radius: 4px;
 	font-size: 14px;
+	box-sizing: border-box;
+	max-width: 100%;
+	word-break: break-word;
+	overflow-wrap: break-word;
 }
 
 .sab-notice-success {
@@ -794,23 +1161,6 @@ body.sab-modal-open {
 	background: #fdf2f2;
 	color: #c40000;
 	border: 1px solid #f5c2c2;
-}
-
-/* Responsive */
-@media (max-width: 600px) {
-	.sab-header-bar {
-		flex-direction: column;
-		align-items: flex-start;
-	}
-
-	.sab-header-actions {
-		width: 100%;
-		justify-content: space-between;
-	}
-
-	.sab-address-grid {
-		grid-template-columns: 1fr;
-	}
 }
 
 /* Invalid Field Highlighting & Messages */
@@ -832,5 +1182,336 @@ body.sab-modal-open {
 	margin-top: 4px;
 	display: block;
 	font-weight: 500;
+	word-break: break-word;
 }
 
+/* ==========================================================================
+   Responsive Layout Styles
+   ========================================================================== */
+
+/* Tablet (max-width: 768px) */
+@media (max-width: 768px) {
+	.sab-header-bar {
+		gap: 12px;
+		margin-bottom: 20px;
+		padding-bottom: 12px;
+	}
+
+	.sab-address-grid {
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+		gap: 15px;
+	}
+
+	.sab-address-form .form-row-first,
+	.sab-address-form .form-row-last,
+	.sab-modal-form-grid .form-row-first,
+	.sab-modal-form-grid .form-row-last {
+		float: none !important;
+		width: 100% !important;
+		margin-right: 0 !important;
+	}
+
+	.sab-blocks-form-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.sab-modal-backdrop {
+		padding: 15px;
+	}
+
+	.sab-modal-dialog {
+		max-height: 92vh;
+	}
+
+	.sab-import-modal-dialog .sab-modal-footer,
+	#sab-csv-import-modal .sab-modal-footer {
+		padding: 16px 20px 20px;
+		gap: 12px;
+		justify-content: flex-end;
+	}
+
+	.sab-import-modal-dialog .sab-modal-footer .button,
+	#sab-csv-import-modal .sab-modal-footer .sab-import-cancel-btn,
+	#sab-csv-import-modal .sab-modal-footer .sab-import-action-btn {
+		min-height: 40px;
+		padding: 9px 20px;
+		font-size: 13.5px;
+	}
+}
+
+/* Small Tablet & Large Mobile (max-width: 600px) */
+@media (max-width: 600px) {
+	.sab-header-bar {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 12px;
+	}
+
+	.sab-header-title {
+		width: 100%;
+	}
+
+	.sab-header-actions {
+		width: 100%;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10px;
+	}
+
+	.sab-header-actions .sab-add-btn {
+		width: 100%;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.sab-csv-actions {
+		width: 100%;
+		display: flex;
+		gap: 8px;
+	}
+
+	.sab-csv-actions .button {
+		flex: 1 1 0;
+		min-width: 0;
+		justify-content: center;
+		text-align: center;
+		padding: 8px 10px;
+		font-size: 13px;
+	}
+
+	.sab-address-grid {
+		grid-template-columns: 1fr;
+		gap: 15px;
+	}
+}
+
+/* Mobile Devices (max-width: 480px) */
+@media (max-width: 480px) {
+	.sab-address-book-wrapper,
+	.sab-address-form-wrapper {
+		margin: 15px 0;
+	}
+
+	.sab-header-title h3 {
+		font-size: 20px;
+	}
+
+	.sab-card {
+		padding: 14px;
+	}
+
+	.sab-card-top {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 8px;
+	}
+
+	.sab-card-actions {
+		gap: 6px;
+	}
+
+	.sab-card-actions .button {
+		flex: 1 1 auto;
+		text-align: center;
+		justify-content: center;
+		padding: 6px 10px;
+	}
+
+	.sab-form-header {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10px;
+	}
+
+	.sab-form-header .sab-back-link {
+		width: 100%;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.sab-address-form .sab-form-actions,
+	.sab-address-form .form-row:last-child {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10px;
+	}
+
+	.sab-address-form .sab-form-actions .button,
+	.sab-address-form .form-row:last-child .button {
+		width: 100% !important;
+		text-align: center;
+		justify-content: center;
+	}
+
+	.sab-cancel-btn {
+		margin-left: 0;
+	}
+
+	.sab-selector-header {
+		flex-direction: column !important;
+		align-items: flex-start !important;
+		gap: 8px !important;
+	}
+
+	.sab-selector-header .sab-add-new-address-btn {
+		width: 100% !important;
+		text-align: center !important;
+		justify-content: center !important;
+		min-height: 36px;
+	}
+
+	.sab-summary-card {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 12px;
+		padding: 12px;
+	}
+
+	.sab-summary-action {
+		width: 100%;
+	}
+
+	.sab-summary-edit-btn {
+		width: 100% !important;
+		text-align: center !important;
+		justify-content: center !important;
+		padding: 7px 14px !important;
+	}
+
+	.sab-inline-form-actions {
+		flex-direction: column !important;
+		align-items: stretch !important;
+		gap: 10px !important;
+	}
+
+	.sab-inline-save-btn,
+	.sab-inline-cancel-btn,
+	.sab-blocks-save-btn,
+	.sab-blocks-cancel-btn {
+		width: 100% !important;
+		text-align: center !important;
+		justify-content: center !important;
+	}
+
+	.sab-modal-backdrop {
+		padding: 8px;
+	}
+
+	.sab-modal-dialog {
+		max-height: 96vh;
+		border-radius: 6px;
+	}
+
+	.sab-modal-header {
+		padding: 12px 14px;
+	}
+
+	.sab-modal-header h3 {
+		font-size: 16px;
+	}
+
+	.sab-modal-body {
+		padding: 14px 12px;
+	}
+
+	.sab-modal-footer {
+		flex-direction: column-reverse;
+		align-items: stretch;
+		gap: 10px;
+		padding: 12px 14px 16px;
+	}
+
+	.sab-modal-footer .button {
+		width: 100% !important;
+		text-align: center;
+		justify-content: center;
+		min-height: 40px;
+	}
+
+	.sab-import-modal-dialog {
+		width: 100% !important;
+		margin: 0;
+	}
+
+	.sab-import-toolbar {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10px;
+		padding: 10px;
+	}
+
+	.sab-import-select-controls {
+		width: 100%;
+		display: flex;
+		gap: 8px;
+	}
+
+	.sab-import-select-controls .button {
+		flex: 1 1 0;
+		min-width: 0;
+		text-align: center;
+		justify-content: center;
+	}
+
+	.sab-selected-counter {
+		width: 100%;
+		text-align: left;
+	}
+
+	.sab-confirm-inner {
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.sab-confirm-buttons {
+		padding-left: 0;
+		flex-direction: column;
+		align-items: stretch;
+		width: 100%;
+		gap: 8px;
+	}
+
+	.sab-confirm-buttons .button {
+		width: 100% !important;
+		text-align: center;
+		justify-content: center;
+		min-height: 38px;
+	}
+
+	.sab-import-modal-dialog .sab-modal-footer,
+	#sab-csv-import-modal .sab-modal-footer {
+		flex-direction: column-reverse;
+		padding: 14px 16px 18px;
+		gap: 10px;
+		align-items: stretch;
+	}
+
+	.sab-import-modal-dialog .sab-modal-footer .button,
+	#sab-csv-import-modal .sab-modal-footer .sab-import-cancel-btn,
+	#sab-csv-import-modal .sab-modal-footer .sab-import-action-btn {
+		width: 100% !important;
+		min-height: 42px;
+		padding: 10px 16px;
+		font-size: 14px;
+		white-space: normal;
+		text-align: center;
+	}
+}
+
+/* Extra Small Screens (max-width: 360px) */
+@media (max-width: 360px) {
+	.sab-csv-actions {
+		flex-direction: column;
+		width: 100%;
+		gap: 8px;
+	}
+
+	.sab-csv-actions .button {
+		width: 100%;
+	}
+
+	.sab-card-actions .button {
+		width: 100%;
+	}
+}

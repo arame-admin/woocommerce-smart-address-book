@@ -269,7 +269,7 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 					</div>
 				</div>
 			</div>
-			<div class="sab-modal-footer">
+			<div class="sab-modal-footer sab-import-modal-footer">
 				<button type="button" class="button sab-import-cancel-btn"><?php esc_html_e( 'Cancel', 'smart-address-book' ); ?></button>
 				<button type="button" class="button button-primary sab-import-action-btn" id="sab-import-action-btn">
 					<?php esc_html_e( 'Import Selected (0)', 'smart-address-book' ); ?>

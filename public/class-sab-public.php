@@ -49,11 +49,12 @@ class SAB_Public {
 		}
 
 		// Public Stylesheet
+		$public_css_ver = defined( 'SAB_VERSION' ) ? SAB_VERSION . '.' . filemtime( SAB_PLUGIN_DIR . 'public/css/sab-public.css' ) : time();
 		wp_enqueue_style(
 			'sab-public',
 			SAB_PLUGIN_URL . 'public/css/sab-public.css',
 			array(),
-			SAB_VERSION
+			$public_css_ver
 		);
 
 		// My Account specific script
