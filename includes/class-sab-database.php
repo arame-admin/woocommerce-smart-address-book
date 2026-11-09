@@ -77,25 +77,28 @@ class SAB_Database {
 	 * Retrieve addresses for a user with optional filtering and sorting.
 	 *
 	 * @param int    $user_id User ID.
-	 * @param string $type Optional address type ('billing', 'shipping', or empty for both).
+	 * @param string $address_type Optional address type ('billing', 'shipping', or empty for both).
 	 * @param string $orderby Ordering method ('default', 'recent', 'id').
 	 * @return array
 	 */
-	public static function get_addresses( $user_id, $type = '', $orderby = 'default' ) {
+	public static function get_addresses( $user_id, $address_type = '', $orderby = 'default' ) {
 		global $wpdb;
 
 		$table_name = self::table_name();
 		$user_id    = absint( $user_id );
-
-		if ( 'default' === $orderby ) {
-			return self::get_addresses_sorted( $user_id, $type );
+		if ( ! $user_id ) {
+			return array();
 		}
 
-		if ( ! empty( $type ) ) {
+		if ( 'default' === $orderby ) {
+			return self::get_addresses_sorted( $user_id, $address_type );
+		}
+
+		if ( ! empty( $address_type ) ) {
 			$sql = $wpdb->prepare(
 				"SELECT * FROM {$table_name} WHERE user_id = %d AND address_type = %s ORDER BY is_default DESC, id DESC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$user_id,
-				$type
+				$address_type
 			);
 		} else {
 			$sql = $wpdb->prepare(
@@ -105,7 +108,16 @@ class SAB_Database {
 		}
 
 		$results = $wpdb->get_results( $sql );
-		return apply_filters( 'sab_get_addresses', $results, $user_id, $type, $orderby );
+
+		/**
+		 * Filter the retrieved addresses for a user.
+		 *
+		 * @param array  $results      Array of address objects.
+		 * @param int    $user_id      User ID.
+		 * @param string $address_type Address type ('billing', 'shipping', or empty).
+		 * @param string $orderby      Ordering method applied.
+		 */
+		return apply_filters( 'sab_get_addresses', $results, $user_id, $address_type, $orderby );
 	}
 
 	/**
@@ -115,22 +127,25 @@ class SAB_Database {
 	 * 3. Remaining Addresses
 	 *
 	 * @param int    $user_id User ID.
-	 * @param string $type Address type.
+	 * @param string $address_type Address type.
 	 * @return array
 	 */
-	public static function get_addresses_sorted( $user_id, $type = '' ) {
+	public static function get_addresses_sorted( $user_id, $address_type = '' ) {
 		global $wpdb;
 
 		self::maybe_update_schema();
 
 		$table_name = self::table_name();
 		$user_id    = absint( $user_id );
+		if ( ! $user_id ) {
+			return array();
+		}
 
-		if ( ! empty( $type ) ) {
+		if ( ! empty( $address_type ) ) {
 			$sql = $wpdb->prepare(
 				"SELECT * FROM {$table_name} WHERE user_id = %d AND address_type = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$user_id,
-				$type
+				$address_type
 			);
 		} else {
 			$sql = $wpdb->prepare(
@@ -171,8 +186,8 @@ class SAB_Database {
 
 		// 2. Check for addresses with last_used_at
 		$has_last_used = false;
-		foreach ( $non_defaults as $a ) {
-			if ( ! empty( $a->last_used_at ) ) {
+		foreach ( $non_defaults as $address ) {
+			if ( ! empty( $address->last_used_at ) ) {
 				$has_last_used = true;
 				break;
 			}
@@ -209,9 +224,9 @@ class SAB_Database {
 				usort(
 					$recently_used,
 					function ( $a, $b ) use ( $recently_used_ids ) {
-						$pos_a = array_search( (int) $a->id, $recently_used_ids, true );
-						$pos_b = array_search( (int) $b->id, $recently_used_ids, true );
-						return $pos_a - $pos_b;
+						$position_a = array_search( (int) $a->id, $recently_used_ids, true );
+						$position_b = array_search( (int) $b->id, $recently_used_ids, true );
+						return $position_a - $position_b;
 					}
 				);
 			}
@@ -231,7 +246,15 @@ class SAB_Database {
 		);
 
 		$sorted = array_merge( $defaults, $recently_used, $remaining );
-		return apply_filters( 'sab_get_addresses_sorted', $sorted, $user_id, $type );
+
+		/**
+		 * Filter the sorted addresses for a user.
+		 *
+		 * @param array  $sorted       Sorted array of address objects.
+		 * @param int    $user_id      User ID.
+		 * @param string $address_type Address type ('billing', 'shipping', or empty).
+		 */
+		return apply_filters( 'sab_get_addresses_sorted', $sorted, $user_id, $address_type );
 	}
 
 	/**
@@ -272,11 +295,11 @@ class SAB_Database {
 			$order_billing  = $order->get_address( 'billing' );
 			$order_shipping = $order->get_address( 'shipping' );
 
-			foreach ( $addresses as $addr ) {
-				$target = ( 'billing' === $addr->address_type ) ? $order_billing : $order_shipping;
-				if ( self::addresses_match( $addr, $target ) ) {
-					if ( ! in_array( (int) $addr->id, $matched_ids, true ) ) {
-						$matched_ids[] = (int) $addr->id;
+			foreach ( $addresses as $address ) {
+				$target = ( 'billing' === $address->address_type ) ? $order_billing : $order_shipping;
+				if ( self::addresses_match( $address, $target ) ) {
+					if ( ! in_array( (int) $address->id, $matched_ids, true ) ) {
+						$matched_ids[] = (int) $address->id;
 					}
 				}
 			}
@@ -288,18 +311,18 @@ class SAB_Database {
 	/**
 	 * Helper: Check if a saved address matches order address.
 	 *
-	 * @param object $addr Saved address.
-	 * @param array  $order_addr Order address array.
+	 * @param object $address Saved address.
+	 * @param array  $order_address Order address array.
 	 * @return bool
 	 */
-	private static function addresses_match( $addr, $order_addr ) {
-		if ( empty( $order_addr ) || empty( $order_addr['address_1'] ) ) {
+	private static function addresses_match( $address, $order_address ) {
+		if ( empty( $order_address ) || empty( $order_address['address_1'] ) ) {
 			return false;
 		}
 
-		$addr_1_match = strtolower( trim( $addr->address_1 ?? '' ) ) === strtolower( trim( $order_addr['address_1'] ?? '' ) );
-		$post_match   = strtolower( trim( $addr->postal_code ?? '' ) ) === strtolower( trim( $order_addr['postcode'] ?? '' ) );
-		$city_match   = strtolower( trim( $addr->city ?? '' ) ) === strtolower( trim( $order_addr['city'] ?? '' ) );
+		$addr_1_match = strtolower( trim( $address->address_1 ?? '' ) ) === strtolower( trim( $order_address['address_1'] ?? '' ) );
+		$post_match   = strtolower( trim( $address->postal_code ?? '' ) ) === strtolower( trim( $order_address['postcode'] ?? '' ) );
+		$city_match   = strtolower( trim( $address->city ?? '' ) ) === strtolower( trim( $order_address['city'] ?? '' ) );
 
 		return ( $addr_1_match && $post_match && $city_match );
 	}
@@ -312,6 +335,10 @@ class SAB_Database {
 	 */
 	private static function get_raw_addresses( $user_id ) {
 		global $wpdb;
+		$user_id = absint( $user_id );
+		if ( ! $user_id ) {
+			return array();
+		}
 		$table_name = self::table_name();
 		return $wpdb->get_results(
 			$wpdb->prepare(
@@ -358,6 +385,11 @@ class SAB_Database {
 		$address_type = in_array( $data['address_type'] ?? '', array( 'billing', 'shipping' ), true ) ? $data['address_type'] : 'shipping';
 		$is_default   = ! empty( $data['is_default'] ) ? 1 : 0;
 
+		// Enforce maximum address limit
+		if ( ! self::can_add_address( $user_id, $address_type ) ) {
+			return false;
+		}
+
 		// If user has no existing address of this type, make this the default automatically
 		$existing_count = self::get_address_count_by_type( $user_id, $address_type );
 		if ( 0 === $existing_count && 'yes' === get_option( 'sab_auto_set_default', 'yes' ) ) {
@@ -401,6 +433,13 @@ class SAB_Database {
 		}
 
 		$new_id = $wpdb->insert_id;
+
+		/**
+		 * Fires after an address is successfully added to the database.
+		 *
+		 * @param int   $new_id      The newly created address ID.
+		 * @param array $insert_data The sanitized data inserted into the database.
+		 */
 		do_action( 'sab_address_added', $new_id, $insert_data );
 
 		return $new_id;
@@ -462,6 +501,12 @@ class SAB_Database {
 
 		$result = $wpdb->update( $table_name, $update_data, array( 'id' => $id ), $formats, array( '%d' ) );
 		if ( false !== $result ) {
+			/**
+			 * Fires after an address is successfully updated in the database.
+			 *
+			 * @param int   $id          The updated address ID.
+			 * @param array $update_data The sanitized update data.
+			 */
 			do_action( 'sab_address_updated', $id, $update_data );
 			return true;
 		}
@@ -517,6 +562,13 @@ class SAB_Database {
 
 			self::$last_new_default_id = $new_default_id;
 
+			/**
+			 * Fires after an address is successfully deleted from the database.
+			 *
+			 * @param int         $id             The deleted address ID.
+			 * @param object      $address        The address object before deletion.
+			 * @param int|false   $new_default_id The new default address ID if re-assigned, or false.
+			 */
 			do_action( 'sab_address_deleted', $id, $address, $new_default_id );
 			return true;
 		}
@@ -527,19 +579,22 @@ class SAB_Database {
 	/**
 	 * Set an address as the default for its type.
 	 *
-	 * @param int    $id Address ID.
+	 * @param int    $address_id Address ID.
 	 * @param int    $user_id User ID.
-	 * @param string $type Address type.
+	 * @param string $address_type Address type.
 	 * @return bool
 	 */
-	public static function set_default( $id, $user_id, $type ) {
+	public static function set_default( $address_id, $user_id, $address_type ) {
 		global $wpdb;
 
 		$table_name = self::table_name();
-		$id         = absint( $id );
+		$address_id = absint( $address_id );
 		$user_id    = absint( $user_id );
+		if ( ! $user_id || ! $address_id ) {
+			return false;
+		}
 
-		self::clear_defaults( $user_id, $type, $id );
+		self::clear_defaults( $user_id, $address_type, $address_id );
 
 		$result = $wpdb->update(
 			$table_name,
@@ -548,7 +603,7 @@ class SAB_Database {
 				'updated_at' => current_time( 'mysql' ),
 			),
 			array(
-				'id'      => $id,
+				'id'      => $address_id,
 				'user_id' => $user_id,
 			),
 			array( '%d', '%s' ),
@@ -562,21 +617,24 @@ class SAB_Database {
 	 * Clear default flag for all addresses of a user and type.
 	 *
 	 * @param int    $user_id User ID.
-	 * @param string $type Address type.
+	 * @param string $address_type Address type.
 	 * @param int    $exclude_id Optional ID to exclude from unsetting.
 	 */
-	public static function clear_defaults( $user_id, $type, $exclude_id = 0 ) {
+	public static function clear_defaults( $user_id, $address_type, $exclude_id = 0 ) {
 		global $wpdb;
 
 		$table_name = self::table_name();
 		$user_id    = absint( $user_id );
+		if ( ! $user_id ) {
+			return;
+		}
 
 		if ( $exclude_id > 0 ) {
 			$wpdb->query(
 				$wpdb->prepare(
 					"UPDATE {$table_name} SET is_default = 0 WHERE user_id = %d AND address_type = %s AND id != %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$user_id,
-					$type,
+					$address_type,
 					$exclude_id
 				)
 			);
@@ -585,7 +643,7 @@ class SAB_Database {
 				$wpdb->prepare(
 					"UPDATE {$table_name} SET is_default = 0 WHERE user_id = %d AND address_type = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$user_id,
-					$type
+					$address_type
 				)
 			);
 		}
@@ -595,20 +653,23 @@ class SAB_Database {
 	 * Get the default address for a user.
 	 *
 	 * @param int    $user_id User ID.
-	 * @param string $type Address type.
+	 * @param string $address_type Address type.
 	 * @return object|null
 	 */
-	public static function get_default_address( $user_id, $type = 'shipping' ) {
+	public static function get_default_address( $user_id, $address_type = 'shipping' ) {
 		global $wpdb;
 
 		$table_name = self::table_name();
 		$user_id    = absint( $user_id );
+		if ( ! $user_id ) {
+			return null;
+		}
 
 		$default = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT * FROM {$table_name} WHERE user_id = %d AND address_type = %s AND is_default = 1 LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$user_id,
-				$type
+				$address_type
 			)
 		);
 
@@ -618,7 +679,7 @@ class SAB_Database {
 				$wpdb->prepare(
 					"SELECT * FROM {$table_name} WHERE user_id = %d AND address_type = %s ORDER BY id DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$user_id,
-					$type
+					$address_type
 				)
 			);
 		}
@@ -631,17 +692,20 @@ class SAB_Database {
 	 *
 	 * @param int    $user_id User ID.
 	 * @param string $search_term Query.
-	 * @param string $type Optional address type.
+	 * @param string $address_type Optional address type.
 	 * @return array
 	 */
-	public static function search_addresses( $user_id, $search_term, $type = '' ) {
+	public static function search_addresses( $user_id, $search_term, $address_type = '' ) {
 		global $wpdb;
 
 		$table_name = self::table_name();
 		$user_id    = absint( $user_id );
+		if ( ! $user_id ) {
+			return array();
+		}
 		$like       = '%' . $wpdb->esc_like( sanitize_text_field( $search_term ) ) . '%';
 
-		if ( ! empty( $type ) ) {
+		if ( ! empty( $address_type ) ) {
 			$sql = $wpdb->prepare(
 				"SELECT * FROM {$table_name} 
 				WHERE user_id = %d 
@@ -659,7 +723,7 @@ class SAB_Database {
 				)
 				ORDER BY is_default DESC, id DESC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$user_id,
-				$type,
+				$address_type,
 				$like,
 				$like,
 				$like,
@@ -713,6 +777,9 @@ class SAB_Database {
 
 		$table_name = self::table_name();
 		$user_id    = absint( $user_id );
+		if ( ! $user_id ) {
+			return 0;
+		}
 
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
@@ -726,20 +793,23 @@ class SAB_Database {
 	 * Address count for a user by address type.
 	 *
 	 * @param int    $user_id User ID.
-	 * @param string $type Address type.
+	 * @param string $address_type Address type.
 	 * @return int
 	 */
-	public static function get_address_count_by_type( $user_id, $type ) {
+	public static function get_address_count_by_type( $user_id, $address_type ) {
 		global $wpdb;
 
 		$table_name = self::table_name();
 		$user_id    = absint( $user_id );
+		if ( ! $user_id ) {
+			return 0;
+		}
 
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table_name} WHERE user_id = %d AND address_type = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$user_id,
-				$type
+				$address_type
 			)
 		);
 	}
@@ -749,18 +819,23 @@ class SAB_Database {
 	 * When type is specified, checks limit for that specific address type.
 	 *
 	 * @param int    $user_id User ID.
-	 * @param string $type Optional address type ('billing' or 'shipping').
+	 * @param string $address_type Optional address type ('billing' or 'shipping').
 	 * @return bool True if user can add, false if maximum limit reached.
 	 */
-	public static function can_add_address( $user_id, $type = '' ) {
+	public static function can_add_address( $user_id, $address_type = '' ) {
+		$user_id = absint( $user_id );
+		if ( ! $user_id ) {
+			return false;
+		}
+
 		$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
 		if ( $max_allowed <= 0 ) {
 			return true;
 		}
 
-		if ( ! empty( $type ) ) {
-			$type          = in_array( $type, array( 'billing', 'shipping' ), true ) ? $type : 'billing';
-			$current_count = self::get_address_count_by_type( $user_id, $type );
+		if ( ! empty( $address_type ) ) {
+			$address_type  = in_array( $address_type, array( 'billing', 'shipping' ), true ) ? $address_type : 'billing';
+			$current_count = self::get_address_count_by_type( $user_id, $address_type );
 			return $current_count < $max_allowed;
 		}
 

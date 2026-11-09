@@ -100,6 +100,60 @@
 	min-height: 38px;
 }
 
+/* "Add New Address" Link in Address Book Page */
+.sab-header-actions .sab-add-btn,
+.sab-header-actions a.sab-add-btn {
+	text-decoration: none !important;
+	transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sab-header-actions .sab-add-btn:visited,
+.sab-header-actions a.sab-add-btn:visited {
+	text-decoration: none !important;
+}
+
+.sab-header-actions .sab-add-btn:hover:not(.sab-disabled):not(:disabled),
+.sab-header-actions a.sab-add-btn:hover:not(.sab-disabled) {
+	text-decoration: none !important;
+	background-color: #e8f4f6 !important;
+	color: var(--sab-primary-hover, #005a6a) !important;
+}
+
+.sab-header-actions .sab-add-btn:focus,
+.sab-header-actions a.sab-add-btn:focus {
+	text-decoration: none !important;
+	outline: none;
+	box-shadow: 0 0 0 2px rgba(0, 113, 133, 0.25);
+}
+
+.sab-header-actions .sab-add-btn:active:not(.sab-disabled):not(:disabled),
+.sab-header-actions a.sab-add-btn:active:not(.sab-disabled) {
+	text-decoration: none !important;
+	background-color: #d8edf1 !important;
+	color: var(--sab-primary-hover, #005a6a) !important;
+}
+
+.sab-header-actions .sab-add-btn.sab-disabled,
+.sab-header-actions .sab-add-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed !important;
+	pointer-events: none;
+}
+
+.sab-header-actions .sab-add-btn .dashicons,
+.sab-header-actions .sab-add-btn .dashicons-plus-alt2 {
+	text-decoration: none !important;
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+	line-height: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	vertical-align: middle;
+	flex-shrink: 0;
+}
+
 /* Search Box */
 .sab-search-wrapper {
 	position: relative;
@@ -435,6 +489,7 @@
 /* Checkout Selector */
 .sab-checkout-selector-container,
 .sab-blocks-selector-wrapper {
+	margin-top: 12px;
 	margin-bottom: 20px;
 	padding: 14px 16px;
 	background: #f7f9fa;
@@ -442,6 +497,7 @@
 	border-radius: 6px;
 	width: 100%;
 	max-width: 100%;
+	min-width: 0;
 	box-sizing: border-box;
 }
 
@@ -1126,6 +1182,22 @@ body.sab-modal-open {
 	font-size: 14px !important;
 	cursor: pointer !important;
 	box-sizing: border-box !important;
+	min-width: 0 !important;
+}
+
+.sab-blocks-address-dropdown {
+	max-width: 100% !important;
+	min-width: 0 !important;
+	box-sizing: border-box !important;
+}
+
+.sab-selector-control,
+.sab-checkout-selector-container .form-row,
+.sab-checkout-selector-container .form-row-wide {
+	width: 100% !important;
+	max-width: 100% !important;
+	min-width: 0 !important;
+	box-sizing: border-box !important;
 }
 
 .sab-checkout-save-wrapper {
@@ -1237,6 +1309,53 @@ body.sab-modal-open {
 		padding: 9px 20px;
 		font-size: 13.5px;
 	}
+
+	/* Saved Address Dropdowns Responsive Fit & Option Wrapping */
+	.sab-checkout-selector-container,
+	.sab-blocks-selector-wrapper {
+		width: 100% !important;
+		max-width: 100% !important;
+		min-width: 0 !important;
+		box-sizing: border-box !important;
+	}
+
+	.sab-checkout-selector-container .form-row,
+	.sab-checkout-selector-container .form-row-wide,
+	.sab-selector-control {
+		width: 100% !important;
+		max-width: 100% !important;
+		min-width: 0 !important;
+		margin-left: 0 !important;
+		margin-right: 0 !important;
+		padding-left: 0 !important;
+		padding-right: 0 !important;
+		box-sizing: border-box !important;
+	}
+
+	.sab-checkout-address-dropdown,
+	.sab-blocks-address-dropdown {
+		width: 100% !important;
+		max-width: 100% !important;
+		min-width: 0 !important;
+		box-sizing: border-box !important;
+		text-overflow: ellipsis !important;
+		white-space: nowrap !important;
+		word-break: normal !important;
+	}
+
+	.sab-checkout-address-dropdown option,
+	.sab-blocks-address-dropdown option {
+		width: 100% !important;
+		max-width: 100% !important;
+		white-space: normal !important;
+		word-wrap: break-word !important;
+		overflow-wrap: break-word !important;
+		word-break: break-word !important;
+		padding: 8px 10px !important;
+		font-size: 13.5px !important;
+		line-height: 1.4 !important;
+		box-sizing: border-box !important;
+	}
 }
 
 /* Small Tablet & Large Mobile (max-width: 600px) */
@@ -1244,11 +1363,24 @@ body.sab-modal-open {
 	.sab-header-bar {
 		flex-direction: column;
 		align-items: stretch;
-		gap: 12px;
+		gap: 10px;
+		margin-bottom: 16px;
+		padding-bottom: 12px;
 	}
 
 	.sab-header-title {
 		width: 100%;
+		flex: none;
+	}
+
+	.sab-header-title h3 {
+		margin: 0 0 4px 0 !important;
+	}
+
+	.sab-header-title .sab-subtitle,
+	.sab-subtitle {
+		margin: 0 !important;
+		line-height: 1.4;
 	}
 
 	.sab-header-actions {
@@ -1279,6 +1411,10 @@ body.sab-modal-open {
 		font-size: 13px;
 	}
 
+	.sab-search-wrapper {
+		margin-bottom: 18px;
+	}
+
 	.sab-address-grid {
 		grid-template-columns: 1fr;
 		gap: 15px;
@@ -1292,8 +1428,23 @@ body.sab-modal-open {
 		margin: 15px 0;
 	}
 
+	.sab-header-bar {
+		gap: 8px;
+		margin-bottom: 14px;
+		padding-bottom: 10px;
+	}
+
 	.sab-header-title h3 {
 		font-size: 20px;
+		margin: 0 0 3px 0 !important;
+	}
+
+	.sab-subtitle {
+		font-size: 13px;
+	}
+
+	.sab-search-wrapper {
+		margin-bottom: 16px;
 	}
 
 	.sab-card {
@@ -1359,6 +1510,18 @@ body.sab-modal-open {
 		text-align: center !important;
 		justify-content: center !important;
 		min-height: 36px;
+	}
+
+	.sab-checkout-address-dropdown,
+	.sab-blocks-address-dropdown {
+		font-size: 13px !important;
+	}
+
+	.sab-checkout-address-dropdown option,
+	.sab-blocks-address-dropdown option {
+		font-size: 13px !important;
+		padding: 6px 8px !important;
+		line-height: 1.35 !important;
 	}
 
 	.sab-summary-card {

@@ -25,6 +25,11 @@ class SAB_Import_Export {
 	 * @return array
 	 */
 	public static function get_csv_headers() {
+		/**
+		 * Filter the column headers used for CSV export and import.
+		 *
+		 * @param array $headers List of CSV header column keys.
+		 */
 		return apply_filters(
 			'sab_csv_headers',
 			array(
@@ -76,10 +81,10 @@ class SAB_Import_Export {
 		$headers = self::get_csv_headers();
 		fputcsv( $output, $headers );
 
-		foreach ( $addresses as $addr ) {
+		foreach ( $addresses as $address ) {
 			$row = array();
 			foreach ( $headers as $col ) {
-				$row[] = $addr->$col ?? '';
+				$row[] = $address->$col ?? '';
 			}
 			fputcsv( $output, $row );
 		}
@@ -238,11 +243,20 @@ class SAB_Import_Export {
 				continue;
 			}
 
-			// Enforce address limits per type
-			$addr_type = in_array( $addr_data['address_type'] ?? 'billing', array( 'billing', 'shipping' ), true ) ? $addr_data['address_type'] : 'billing';
-			if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $user_id, $addr_type ) ) {
+			// Enforce feature settings and address limits per type
+			$address_type = in_array( $addr_data['address_type'] ?? 'billing', array( 'billing', 'shipping' ), true ) ? $addr_data['address_type'] : 'billing';
+			if ( 'yes' !== get_option( 'sab_enable_' . $address_type, 'yes' ) ) {
 				$nickname = ! empty( $addr_data['nickname'] ) ? $addr_data['nickname'] : ( '#' . ( $idx + 1 ) );
-				$errors[] = sprintf( __( '%1$s skipped: maximum limit of %2$d saved %3$s addresses reached.', 'smart-address-book' ), $nickname, $max_allowed, $addr_type );
+				/* translators: 1: Address nickname, 2: Address type */
+				$errors[] = sprintf( __( '%1$s skipped: %2$s address book is currently disabled.', 'smart-address-book' ), $nickname, ucfirst( $address_type ) );
+				$skipped++;
+				continue;
+			}
+
+			if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $user_id, $address_type ) ) {
+				$nickname = ! empty( $addr_data['nickname'] ) ? $addr_data['nickname'] : ( '#' . ( $idx + 1 ) );
+				/* translators: 1: Address nickname, 2: Maximum allowed, 3: Address type */
+				$errors[] = sprintf( __( '%1$s skipped: maximum limit of %2$d saved %3$s addresses reached.', 'smart-address-book' ), $nickname, $max_allowed, $address_type );
 				$skipped++;
 				continue;
 			}
@@ -413,6 +427,13 @@ class SAB_Import_Export {
 				}
 			}
 
+			// Enforce feature settings per type
+			if ( 'yes' !== get_option( 'sab_enable_' . $data['address_type'], 'yes' ) ) {
+				/* translators: 1: Row number, 2: Address type */
+				$skipped_rows[] = sprintf( __( 'Row %1$d skipped: %2$s address book is currently disabled.', 'smart-address-book' ), $row_num, ucfirst( $data['address_type'] ) );
+				continue;
+			}
+
 			// Normalize is_default
 			if ( isset( $data['is_default'] ) ) {
 				$data['is_default'] = in_array( strtolower( (string) $data['is_default'] ), array( '1', 'true', 'yes', 'default' ), true ) ? 1 : 0;
@@ -484,10 +505,18 @@ class SAB_Import_Export {
 		$max_allowed     = (int) get_option( 'sab_max_addresses', 0 );
 
 		foreach ( $valid_addresses as $sanitized ) {
+			$address_type = in_array( $sanitized['address_type'] ?? 'billing', array( 'billing', 'shipping' ), true ) ? $sanitized['address_type'] : 'billing';
+			if ( 'yes' !== get_option( 'sab_enable_' . $address_type, 'yes' ) ) {
+				/* translators: 1: Row number, 2: Address type */
+				$errors[] = sprintf( __( 'Row %1$d skipped: %2$s address book is currently disabled.', 'smart-address-book' ), $sanitized['row_num'], ucfirst( $address_type ) );
+				$skipped++;
+				continue;
+			}
+
 			if ( $max_allowed > 0 ) {
-				$addr_type = in_array( $sanitized['address_type'] ?? 'billing', array( 'billing', 'shipping' ), true ) ? $sanitized['address_type'] : 'billing';
-				if ( ! SAB_Database::can_add_address( $user_id, $addr_type ) ) {
-					$errors[] = sprintf( __( 'Row %1$d skipped: maximum limit of %2$d saved %3$s addresses reached.', 'smart-address-book' ), $sanitized['row_num'], $max_allowed, $addr_type );
+				if ( ! SAB_Database::can_add_address( $user_id, $address_type ) ) {
+					/* translators: 1: Row number, 2: Maximum allowed, 3: Address type */
+					$errors[] = sprintf( __( 'Row %1$d skipped: maximum limit of %2$d saved %3$s addresses reached.', 'smart-address-book' ), $sanitized['row_num'], $max_allowed, $address_type );
 					$skipped++;
 					continue;
 				}
@@ -497,6 +526,7 @@ class SAB_Import_Export {
 			if ( $inserted_id ) {
 				$imported++;
 			} else {
+				/* translators: %d: Row number */
 				$errors[] = sprintf( __( 'Row %d could not be saved to database.', 'smart-address-book' ), $sanitized['row_num'] );
 				$skipped++;
 			}

@@ -43,29 +43,29 @@
 					address_id: addressId,
 					nonce: sab_admin_params.nonce
 				},
-				success: function(res) {
-					if (res.success && res.data.address) {
-						var a = res.data.address;
-						$('#sab_modal_address_id').val(a.id);
-						$('#sab_modal_type').val(a.address_type);
-						$('#sab_modal_nickname').val(a.nickname || '');
-						$('#sab_modal_first_name').val(a.first_name || '');
-						$('#sab_modal_last_name').val(a.last_name || '');
-						$('#sab_modal_company').val(a.company || '');
-						$('#sab_modal_phone').val(a.phone || '');
-						$('#sab_modal_email').val(a.email || '');
-						$('#sab_modal_country').val(a.country || '').trigger('change');
-						$('#sab_modal_address_1').val(a.address_1 || '');
-						$('#sab_modal_address_2').val(a.address_2 || '');
-						$('#sab_modal_city').val(a.city || '');
-						$('#sab_modal_state').val(a.state || '');
-						$('#sab_modal_postal_code').val(a.postal_code || '');
-						$('#sab_modal_is_default').prop('checked', parseInt(a.is_default, 10) === 1);
+				success: function(response) {
+					if (response.success && response.data.address) {
+						var address = response.data.address;
+						$('#sab_modal_address_id').val(address.id);
+						$('#sab_modal_type').val(address.address_type);
+						$('#sab_modal_nickname').val(address.nickname || '');
+						$('#sab_modal_first_name').val(address.first_name || '');
+						$('#sab_modal_last_name').val(address.last_name || '');
+						$('#sab_modal_company').val(address.company || '');
+						$('#sab_modal_phone').val(address.phone || '');
+						$('#sab_modal_email').val(address.email || '');
+						$('#sab_modal_country').val(address.country || '').trigger('change');
+						$('#sab_modal_address_1').val(address.address_1 || '');
+						$('#sab_modal_address_2').val(address.address_2 || '');
+						$('#sab_modal_city').val(address.city || '');
+						$('#sab_modal_state').val(address.state || '');
+						$('#sab_modal_postal_code').val(address.postal_code || '');
+						$('#sab_modal_is_default').prop('checked', parseInt(address.is_default, 10) === 1);
 
-						$('#sab-modal-title').text('Edit Address (ID #' + a.id + ')');
+						$('#sab-modal-title').text('Edit Address (ID #' + address.id + ')');
 						$modal.fadeIn(200);
 					} else {
-						alert(res.data.message || 'Could not load address.');
+						alert(response.data.message || 'Could not load address.');
 					}
 				}
 			});
@@ -89,13 +89,13 @@
 				type: 'POST',
 				dataType: 'json',
 				data: formData,
-				success: function(res) {
+				success: function(response) {
 					$('#sab-modal-save-btn').prop('disabled', false).text('Save Address');
-					if (res.success) {
+					if (response.success) {
 						$modal.fadeOut(200);
 						location.reload();
 					} else {
-						alert(res.data.message || sab_admin_params.i18n.error);
+						alert(response.data.message || sab_admin_params.i18n.error);
 					}
 				},
 				error: function() {
@@ -124,14 +124,14 @@
 					address_id: addressId,
 					nonce: sab_admin_params.nonce
 				},
-				success: function(res) {
-					if (res.success) {
+				success: function(response) {
+					if (response.success) {
 						$row.fadeOut(300, function() {
 							$(this).remove();
 						});
 
-						if (res.data && res.data.new_default_id) {
-							var $newRow = $('#sab-admin-row-' + res.data.new_default_id);
+						if (response.data && response.data.new_default_id) {
+							var $newRow = $('#sab-admin-row-' + response.data.new_default_id);
 							if ($newRow.length) {
 								var defaultLabel = (typeof sab_admin_params !== 'undefined' && sab_admin_params.i18n && sab_admin_params.i18n.default)
 									? sab_admin_params.i18n.default
@@ -142,7 +142,7 @@
 							}
 						}
 					} else {
-						alert(res.data.message || sab_admin_params.i18n.error);
+						alert(response.data.message || sab_admin_params.i18n.error);
 					}
 				}
 			});
@@ -164,11 +164,11 @@
 					type: type,
 					nonce: sab_admin_params.nonce
 				},
-				success: function(res) {
-					if (res.success) {
+				success: function(response) {
+					if (response.success) {
 						location.reload();
 					} else {
-						alert(res.data.message || sab_admin_params.i18n.error);
+						alert(response.data.message || sab_admin_params.i18n.error);
 					}
 				}
 			});

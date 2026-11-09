@@ -17,6 +17,11 @@ class SAB_Address {
 	public static function get_fields() {
 		$validate_required = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
 
+		/**
+		 * Filter the field configuration definitions for smart address book addresses.
+		 *
+		 * @param array $fields Associative array of field configurations.
+		 */
 		return apply_filters(
 			'sab_address_fields',
 			array(
@@ -102,6 +107,11 @@ class SAB_Address {
 			}
 		}
 
+		/**
+		 * Filter the list of required address field keys.
+		 *
+		 * @param array $required Array of required field key strings.
+		 */
 		return apply_filters( 'sab_required_fields', $required );
 	}
 

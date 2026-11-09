@@ -55,14 +55,20 @@ class SAB_Ajax {
 			$target_user_id = absint( $_POST['user_id'] );
 		}
 
-		// Check address limits for this specific type
-		$type = sanitize_text_field( $_POST['address_type'] ?? 'shipping' );
-		$type = in_array( $type, array( 'billing', 'shipping' ), true ) ? $type : 'shipping';
+		// Check address limits and feature setting for this specific type
+		$address_type = sanitize_text_field( $_POST['address_type'] ?? 'shipping' );
+		$address_type = in_array( $address_type, array( 'billing', 'shipping' ), true ) ? $address_type : 'shipping';
+
+		if ( 'yes' !== get_option( 'sab_enable_' . $address_type, 'yes' ) ) {
+			/* translators: %s: address type */
+			wp_send_json_error( array( 'message' => sprintf( __( '%s address book is currently disabled.', 'smart-address-book' ), ucfirst( $address_type ) ) ), 403 );
+			return;
+		}
 
 		$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
-		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $target_user_id, $type ) ) {
+		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $target_user_id, $address_type ) ) {
 			/* translators: 1: maximum allowed addresses, 2: address type */
-			wp_send_json_error( array( 'message' => sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses.', 'smart-address-book' ), $max_allowed, $type ) ) );
+			wp_send_json_error( array( 'message' => sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses.', 'smart-address-book' ), $max_allowed, $address_type ) ) );
 			return;
 		}
 
@@ -90,18 +96,18 @@ class SAB_Ajax {
 			return;
 		}
 
-		$new_id = SAB_Database::add_address( $sanitized );
-		if ( ! $new_id ) {
+		$new_address_id = SAB_Database::add_address( $sanitized );
+		if ( ! $new_address_id ) {
 			wp_send_json_error( array( 'message' => __( 'Could not save address. Please try again.', 'smart-address-book' ) ) );
 		}
 
-		$created = SAB_Database::get_address( $new_id );
+		$created_address = SAB_Database::get_address( $new_address_id );
 		wp_send_json_success(
 			array(
 				'message'    => __( 'Address saved successfully!', 'smart-address-book' ),
-				'address_id' => $new_id,
-				'address'    => $created,
-				'formatted'  => SAB_Address::format_address( $created ),
+				'address_id' => $new_address_id,
+				'address'    => $created_address,
+				'formatted'  => SAB_Address::format_address( $created_address ),
 			)
 		);
 	}
@@ -127,6 +133,12 @@ class SAB_Ajax {
 			wp_send_json_error( array( 'message' => __( 'You do not have permission to edit this address.', 'smart-address-book' ) ), 403 );
 		}
 
+		if ( 'yes' !== get_option( 'sab_enable_' . $existing->address_type, 'yes' ) ) {
+			/* translators: %s: address type */
+			wp_send_json_error( array( 'message' => sprintf( __( '%s address book is currently disabled.', 'smart-address-book' ), ucfirst( $existing->address_type ) ) ), 403 );
+			return;
+		}
+
 		$sanitized = SAB_Address::sanitize( $_POST );
 		$sanitized['user_id'] = (int) $existing->user_id; // Preserve owner
 
@@ -149,8 +161,8 @@ class SAB_Ajax {
 			return;
 		}
 
-		$updated = SAB_Database::update_address( $address_id, $sanitized );
-		if ( ! $updated ) {
+		$is_updated = SAB_Database::update_address( $address_id, $sanitized );
+		if ( ! $is_updated ) {
 			wp_send_json_error( array( 'message' => __( 'Could not update address.', 'smart-address-book' ) ) );
 		}
 
@@ -210,8 +222,8 @@ class SAB_Ajax {
 	public function ajax_set_default() {
 		$current_user_id = $this->verify_request();
 
-		$address_id = absint( $_POST['address_id'] ?? ( $_POST['id'] ?? 0 ) );
-		$type       = sanitize_text_field( $_POST['address_type'] ?? ( $_POST['type'] ?? 'shipping' ) );
+		$address_id   = absint( $_POST['address_id'] ?? ( $_POST['id'] ?? 0 ) );
+		$address_type = sanitize_text_field( $_POST['address_type'] ?? ( $_POST['type'] ?? 'shipping' ) );
 
 		if ( ! $address_id ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid address ID.', 'smart-address-book' ) ) );
@@ -227,10 +239,17 @@ class SAB_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'smart-address-book' ) ), 403 );
 		}
 
-		$type = in_array( $type, array( 'billing', 'shipping' ), true ) ? $type : $existing->address_type;
-		$ok   = SAB_Database::set_default( $address_id, $target_user_id, $type );
+		$address_type   = in_array( $address_type, array( 'billing', 'shipping' ), true ) ? $address_type : $existing->address_type;
 
-		if ( ! $ok ) {
+		if ( 'yes' !== get_option( 'sab_enable_' . $address_type, 'yes' ) ) {
+			/* translators: %s: address type */
+			wp_send_json_error( array( 'message' => sprintf( __( '%s address book is currently disabled.', 'smart-address-book' ), ucfirst( $address_type ) ) ), 403 );
+			return;
+		}
+
+		$is_default_set = SAB_Database::set_default( $address_id, $target_user_id, $address_type );
+
+		if ( ! $is_default_set ) {
 			wp_send_json_error( array( 'message' => __( 'Could not set default address.', 'smart-address-book' ) ) );
 		}
 
@@ -238,7 +257,7 @@ class SAB_Ajax {
 			array(
 				'message'    => __( 'Default address updated.', 'smart-address-book' ),
 				'address_id' => $address_id,
-				'type'       => $type,
+				'type'       => $address_type,
 			)
 		);
 	}
@@ -272,20 +291,20 @@ class SAB_Ajax {
 	public function ajax_search_addresses() {
 		$current_user_id = $this->verify_request();
 
-		$term = sanitize_text_field( $_GET['term'] ?? '' );
-		$type = sanitize_text_field( $_GET['type'] ?? '' );
+		$term         = sanitize_text_field( $_GET['term'] ?? '' );
+		$address_type = sanitize_text_field( $_GET['type'] ?? '' );
 
-		$results = SAB_Database::search_addresses( $current_user_id, $term, $type );
+		$results = SAB_Database::search_addresses( $current_user_id, $term, $address_type );
 
 		$formatted = array();
-		foreach ( $results as $addr ) {
+		foreach ( $results as $address ) {
 			$formatted[] = array(
-				'id'         => $addr->id,
-				'nickname'   => $addr->nickname,
-				'type'       => $addr->address_type,
-				'is_default' => (int) $addr->is_default,
-				'formatted'  => SAB_Address::format_address( $addr ),
-				'raw'        => $addr,
+				'id'         => $address->id,
+				'nickname'   => $address->nickname,
+				'type'       => $address->address_type,
+				'is_default' => (int) $address->is_default,
+				'formatted'  => SAB_Address::format_address( $address ),
+				'raw'        => $address,
 			);
 		}
 
@@ -298,8 +317,15 @@ class SAB_Ajax {
 	public function ajax_get_checkout_address() {
 		$current_user_id = $this->verify_request( 'sab_checkout_nonce' );
 
-		$address_id = absint( $_GET['address_id'] ?? 0 );
-		$type       = sanitize_text_field( $_GET['type'] ?? 'billing' );
+		$address_id   = absint( $_GET['address_id'] ?? 0 );
+		$address_type = sanitize_text_field( $_GET['type'] ?? 'billing' );
+		$address_type = in_array( $address_type, array( 'billing', 'shipping' ), true ) ? $address_type : 'billing';
+
+		if ( 'yes' !== get_option( 'sab_enable_' . $address_type, 'yes' ) ) {
+			/* translators: %s: address type */
+			wp_send_json_error( array( 'message' => sprintf( __( '%s address book is currently disabled.', 'smart-address-book' ), ucfirst( $address_type ) ) ), 403 );
+			return;
+		}
 
 		if ( ! $address_id ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid address ID.', 'smart-address-book' ) ) );
@@ -310,7 +336,7 @@ class SAB_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Address not found.', 'smart-address-book' ) ) );
 		}
 
-		$prefix = ( 'shipping' === $type ) ? 'shipping_' : 'billing_';
+		$prefix = ( 'shipping' === $address_type ) ? 'shipping_' : 'billing_';
 
 		$fields = array(
 			$prefix . 'first_name' => $address->first_name,
@@ -341,23 +367,29 @@ class SAB_Ajax {
 			return;
 		}
 
-		$type = sanitize_text_field( $_POST['address_type'] ?? 'shipping' );
-		$type = in_array( $type, array( 'billing', 'shipping' ), true ) ? $type : 'shipping';
+		$address_type = sanitize_text_field( $_POST['address_type'] ?? 'shipping' );
+		$address_type = in_array( $address_type, array( 'billing', 'shipping' ), true ) ? $address_type : 'shipping';
 
-		// Check address limits for this specific type
-		$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
-		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $current_user_id, $type ) ) {
-			/* translators: 1: maximum allowed addresses, 2: address type */
-			wp_send_json_error( array( 'message' => sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses.', 'smart-address-book' ), $max_allowed, $type ) ) );
+		if ( 'yes' !== get_option( 'sab_enable_' . $address_type, 'yes' ) ) {
+			/* translators: %s: address type */
+			wp_send_json_error( array( 'message' => sprintf( __( '%s address book is currently disabled.', 'smart-address-book' ), ucfirst( $address_type ) ) ), 403 );
 			return;
 		}
 
-		$prefix = ( 'billing' === $type ) ? 'billing_' : 'shipping_';
+		// Check address limits for this specific type
+		$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
+		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $current_user_id, $address_type ) ) {
+			/* translators: 1: maximum allowed addresses, 2: address type */
+			wp_send_json_error( array( 'message' => sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses.', 'smart-address-book' ), $max_allowed, $address_type ) ) );
+			return;
+		}
+
+		$prefix = ( 'billing' === $address_type ) ? 'billing_' : 'shipping_';
 
 		// Map checkout fields to SAB address fields
 		$address_data = array(
 			'user_id'      => $current_user_id,
-			'address_type' => $type,
+			'address_type' => $address_type,
 			'nickname'     => sanitize_text_field( $_POST['nickname'] ?? ( $_POST[ $prefix . 'nickname' ] ?? '' ) ),
 			'first_name'   => sanitize_text_field( $_POST[ $prefix . 'first_name' ] ?? ( $_POST['first_name'] ?? '' ) ),
 			'last_name'    => sanitize_text_field( $_POST[ $prefix . 'last_name' ] ?? ( $_POST['last_name'] ?? '' ) ),
@@ -374,8 +406,8 @@ class SAB_Ajax {
 
 		// If no nickname provided, generate default
 		if ( empty( $address_data['nickname'] ) ) {
-			$count                    = SAB_Database::get_address_count_by_type( $current_user_id, $type ) + 1;
-			$address_data['nickname'] = sprintf( '%s #%d', ucfirst( $type ), $count );
+			$count                    = SAB_Database::get_address_count_by_type( $current_user_id, $address_type ) + 1;
+			$address_data['nickname'] = sprintf( '%s #%d', ucfirst( $address_type ), $count );
 		}
 
 		if ( isset( $_POST['is_default'] ) ) {
@@ -402,7 +434,7 @@ class SAB_Ajax {
 		}
 
 		// Avoid duplicate address records
-		$existing_addresses = SAB_Database::get_addresses( $current_user_id, $type, 'id' );
+		$existing_addresses = SAB_Database::get_addresses( $current_user_id, $address_type, 'id' );
 		foreach ( $existing_addresses as $existing ) {
 			if (
 				strtolower( trim( (string) $existing->address_1 ) ) === strtolower( trim( (string) $address_data['address_1'] ) ) &&
@@ -438,35 +470,35 @@ class SAB_Ajax {
 			}
 		}
 
-		$new_id = SAB_Database::add_address( $address_data );
-		if ( ! $new_id ) {
+		$new_address_id = SAB_Database::add_address( $address_data );
+		if ( ! $new_address_id ) {
 			wp_send_json_error( array( 'message' => __( 'Could not save address.', 'smart-address-book' ) ) );
 			return;
 		}
 
-		$created = SAB_Database::get_address( $new_id );
+		$created_address = SAB_Database::get_address( $new_address_id );
 
 		$label_parts = array();
-		if ( ! empty( $created->nickname ) ) {
-			$label_parts[] = '[' . $created->nickname . ']';
+		if ( ! empty( $created_address->nickname ) ) {
+			$label_parts[] = '[' . $created_address->nickname . ']';
 		}
-		$label_parts[] = trim( $created->first_name . ' ' . $created->last_name );
-		$label_parts[] = $created->address_1;
-		$label_parts[] = $created->city . ( $created->postal_code ? ' ' . $created->postal_code : '' );
+		$label_parts[] = trim( $created_address->first_name . ' ' . $created_address->last_name );
+		$label_parts[] = $created_address->address_1;
+		$label_parts[] = $created_address->city . ( $created_address->postal_code ? ' ' . $created_address->postal_code : '' );
 
 		$display_label = implode( ' — ', array_filter( $label_parts ) );
-		if ( (int) $created->is_default === 1 ) {
+		if ( (int) $created_address->is_default === 1 ) {
 			$display_label .= ' (' . __( 'Default', 'smart-address-book' ) . ')';
 		}
 
 		wp_send_json_success(
 			array(
 				'message'    => __( 'Address saved successfully!', 'smart-address-book' ),
-				'address_id' => $new_id,
-				'address'    => $created,
-				'nickname'   => $created->nickname,
+				'address_id' => (int) $new_address_id,
+				'address'    => $created_address,
+				'nickname'   => $created_address->nickname,
 				'label'      => $display_label,
-				'is_default' => (int) $created->is_default,
+				'is_default' => (int) $created_address->is_default,
 			)
 		);
 		return;

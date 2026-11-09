@@ -33,29 +33,29 @@ $countries = WC()->countries ? WC()->countries->get_allowed_countries() : array(
 					<td colspan="5"><?php esc_html_e( 'No addresses saved for this customer yet.', 'smart-address-book' ); ?></td>
 				</tr>
 			<?php else : ?>
-				<?php foreach ( $addresses as $addr ) : ?>
+				<?php foreach ( $addresses as $address ) : ?>
 					<?php
-					$is_def   = (int) $addr->is_default === 1;
-					$nickname = ! empty( $addr->nickname ) ? $addr->nickname : '—';
+					$is_default = ( 1 === (int) $address->is_default );
+					$nickname   = ! empty( $address->nickname ) ? $address->nickname : '—';
 					?>
-					<tr id="sab-admin-row-<?php echo esc_attr( $addr->id ); ?>" data-id="<?php echo esc_attr( $addr->id ); ?>">
+					<tr id="sab-admin-row-<?php echo esc_attr( $address->id ); ?>" data-id="<?php echo esc_attr( $address->id ); ?>">
 						<td><strong><?php echo esc_html( $nickname ); ?></strong></td>
-						<td><span class="sab-type-tag sab-type-<?php echo esc_attr( $addr->address_type ); ?>"><?php echo esc_html( ucfirst( $addr->address_type ) ); ?></span></td>
-						<td><?php echo wp_kses_post( SAB_Address::format_address( $addr ) ); ?></td>
+						<td><span class="sab-type-tag sab-type-<?php echo esc_attr( $address->address_type ); ?>"><?php echo esc_html( ucfirst( $address->address_type ) ); ?></span></td>
+						<td><?php echo wp_kses_post( SAB_Address::format_address( $address ) ); ?></td>
 						<td>
-							<?php if ( $is_def ) : ?>
+							<?php if ( $is_default ) : ?>
 								<span class="dashicons dashicons-star-filled sab-star-icon"></span> <strong><?php esc_html_e( 'Default', 'smart-address-book' ); ?></strong>
 							<?php else : ?>
-								<button type="button" class="button button-small sab-admin-set-default" data-id="<?php echo esc_attr( $addr->id ); ?>" data-type="<?php echo esc_attr( $addr->address_type ); ?>">
+								<button type="button" class="button button-small sab-admin-set-default" data-id="<?php echo esc_attr( $address->id ); ?>" data-type="<?php echo esc_attr( $address->address_type ); ?>">
 									<?php esc_html_e( 'Set Default', 'smart-address-book' ); ?>
 								</button>
 							<?php endif; ?>
 						</td>
 						<td>
-							<button type="button" class="button button-small sab-admin-edit-btn" data-id="<?php echo esc_attr( $addr->id ); ?>">
+							<button type="button" class="button button-small sab-admin-edit-btn" data-id="<?php echo esc_attr( $address->id ); ?>">
 								<?php esc_html_e( 'Edit', 'smart-address-book' ); ?>
 							</button>
-							<button type="button" class="button button-small sab-admin-del-btn" data-id="<?php echo esc_attr( $addr->id ); ?>">
+							<button type="button" class="button button-small sab-admin-del-btn" data-id="<?php echo esc_attr( $address->id ); ?>">
 								<?php esc_html_e( 'Delete', 'smart-address-book' ); ?>
 							</button>
 						</td>
@@ -128,8 +128,8 @@ $countries = WC()->countries ? WC()->countries->get_allowed_countries() : array(
 							<label for="sab_modal_country"><strong><?php esc_html_e( 'Country', 'smart-address-book' ); ?> *</strong></label>
 							<select name="country" id="sab_modal_country" class="widefat" required>
 								<option value=""><?php esc_html_e( 'Select country...', 'smart-address-book' ); ?></option>
-								<?php foreach ( $countries as $c_code => $c_name ) : ?>
-									<option value="<?php echo esc_attr( $c_code ); ?>"><?php echo esc_html( $c_name ); ?></option>
+								<?php foreach ( $countries as $country_code => $country_name ) : ?>
+									<option value="<?php echo esc_attr( $country_code ); ?>"><?php echo esc_html( $country_name ); ?></option>
 								<?php endforeach; ?>
 							</select>
 						</div>

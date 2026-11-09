@@ -69,6 +69,13 @@ class SAB_MyAccount {
 				$this->render_list( $user_id );
 				return;
 			}
+
+			if ( 'yes' !== get_option( 'sab_enable_' . $address->address_type, 'yes' ) ) {
+				/* translators: %s: address type */
+				wc_add_notice( sprintf( __( '%s address book is currently disabled.', 'smart-address-book' ), ucfirst( $address->address_type ) ), 'error' );
+				$this->render_list( $user_id );
+				return;
+			}
 		}
 
 		$template_path = $this->locate_template( 'address-form.php' );
@@ -93,18 +100,23 @@ class SAB_MyAccount {
 			return;
 		}
 
-		$user_id    = get_current_user_id();
-		$address_id = absint( $_POST['address_id'] ?? 0 );
+		$user_id      = get_current_user_id();
+		$address_id   = absint( $_POST['address_id'] ?? 0 );
+		$address_type = sanitize_text_field( $_POST['address_type'] ?? 'shipping' );
+		$address_type = in_array( $address_type, array( 'billing', 'shipping' ), true ) ? $address_type : 'shipping';
+
+		if ( 'yes' !== get_option( 'sab_enable_' . $address_type, 'yes' ) ) {
+			/* translators: %s: address type */
+			wc_add_notice( sprintf( __( '%s address book is currently disabled.', 'smart-address-book' ), ucfirst( $address_type ) ), 'error' );
+			return;
+		}
 
 		// Check limit if adding
 		if ( ! $address_id ) {
-			$type = sanitize_text_field( $_POST['address_type'] ?? 'shipping' );
-			$type = in_array( $type, array( 'billing', 'shipping' ), true ) ? $type : 'shipping';
-
 			$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
-			if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $user_id, $type ) ) {
+			if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $user_id, $address_type ) ) {
 				/* translators: 1: maximum allowed addresses, 2: address type */
-				wc_add_notice( sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses.', 'smart-address-book' ), $max_allowed, $type ), 'error' );
+				wc_add_notice( sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses.', 'smart-address-book' ), $max_allowed, $address_type ), 'error' );
 				return;
 			}
 		}

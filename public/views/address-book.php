@@ -34,6 +34,7 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 				<span class="dashicons dashicons-plus-alt2"></span> <?php esc_html_e( 'Add New Address', 'smart-address-book' ); ?>
 			</a>
 			<?php else : ?>
+			<?php /* translators: %d: maximum allowed addresses */ ?>
 			<button type="button" class="button sab-add-btn sab-disabled" data-can-add="0" title="<?php echo esc_attr( sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ) ); ?>">
 				<span class="dashicons dashicons-plus-alt2"></span> <?php esc_html_e( 'Add New Address', 'smart-address-book' ); ?>
 			</button>
@@ -72,6 +73,7 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 		<div class="sab-limit-notice sab-billing-limit-notice woocommerce-info" style="margin-bottom: 20px;">
 			<p style="margin: 0;">
 				<strong><?php esc_html_e( 'Maximum Billing Limit Reached:', 'smart-address-book' ); ?></strong>
+				<?php /* translators: %d: maximum allowed billing addresses */ ?>
 				<?php echo esc_html( sprintf( __( 'You have reached the maximum limit of %d saved billing addresses. To add a new billing address, please delete an existing one.', 'smart-address-book' ), $max_allowed ) ); ?>
 			</p>
 		</div>
@@ -88,17 +90,17 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 			<?php else : ?>
 				<?php foreach ( $billing_addresses as $address ) : ?>
 					<?php
-					$is_def    = (int) $address->is_default === 1;
-					$edit_url  = add_query_arg( array( 'action' => 'edit', 'address_id' => $address->id ), wc_get_account_endpoint_url( 'sab-address-book' ) );
-					$nickname  = ! empty( $address->nickname ) ? $address->nickname : __( 'Billing Address', 'smart-address-book' );
+					$is_default = ( 1 === (int) $address->is_default );
+					$edit_url   = add_query_arg( array( 'action' => 'edit', 'address_id' => $address->id ), wc_get_account_endpoint_url( 'sab-address-book' ) );
+					$nickname   = ! empty( $address->nickname ) ? $address->nickname : __( 'Billing Address', 'smart-address-book' );
 					?>
-					<div class="sab-card <?php echo $is_def ? 'sab-is-default' : ''; ?>" data-id="<?php echo esc_attr( $address->id ); ?>" data-type="billing">
+					<div class="sab-card <?php echo $is_default ? 'sab-is-default' : ''; ?>" data-id="<?php echo esc_attr( $address->id ); ?>" data-type="billing">
 						<div class="sab-card-top">
 							<span class="sab-card-nickname">
 								<span class="dashicons dashicons-location"></span>
 								<strong><?php echo esc_html( $nickname ); ?></strong>
 							</span>
-							<?php if ( $is_def ) : ?>
+							<?php if ( $is_default ) : ?>
 								<span class="sab-badge sab-default-badge"><?php esc_html_e( 'Default Billing', 'smart-address-book' ); ?></span>
 							<?php endif; ?>
 						</div>
@@ -122,7 +124,7 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 							<button type="button" class="button button-small sab-action-delete" data-id="<?php echo esc_attr( $address->id ); ?>">
 								<?php esc_html_e( 'Delete', 'smart-address-book' ); ?>
 							</button>
-							<?php if ( ! $is_def ) : ?>
+							<?php if ( ! $is_default ) : ?>
 								<button type="button" class="button button-small sab-action-set-default" data-id="<?php echo esc_attr( $address->id ); ?>" data-type="billing">
 									<?php esc_html_e( 'Set as Default', 'smart-address-book' ); ?>
 								</button>
@@ -147,6 +149,7 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 		<div class="sab-limit-notice sab-shipping-limit-notice woocommerce-info" style="margin-bottom: 20px;">
 			<p style="margin: 0;">
 				<strong><?php esc_html_e( 'Maximum Shipping Limit Reached:', 'smart-address-book' ); ?></strong>
+				<?php /* translators: %d: maximum allowed shipping addresses */ ?>
 				<?php echo esc_html( sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses. To add a new shipping address, please delete an existing one.', 'smart-address-book' ), $max_allowed ) ); ?>
 			</p>
 		</div>
@@ -163,17 +166,17 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 			<?php else : ?>
 				<?php foreach ( $shipping_addresses as $address ) : ?>
 					<?php
-					$is_def    = (int) $address->is_default === 1;
-					$edit_url  = add_query_arg( array( 'action' => 'edit', 'address_id' => $address->id ), wc_get_account_endpoint_url( 'sab-address-book' ) );
-					$nickname  = ! empty( $address->nickname ) ? $address->nickname : __( 'Shipping Address', 'smart-address-book' );
+					$is_default = ( 1 === (int) $address->is_default );
+					$edit_url   = add_query_arg( array( 'action' => 'edit', 'address_id' => $address->id ), wc_get_account_endpoint_url( 'sab-address-book' ) );
+					$nickname   = ! empty( $address->nickname ) ? $address->nickname : __( 'Shipping Address', 'smart-address-book' );
 					?>
-					<div class="sab-card <?php echo $is_def ? 'sab-is-default' : ''; ?>" data-id="<?php echo esc_attr( $address->id ); ?>" data-type="shipping">
+					<div class="sab-card <?php echo $is_default ? 'sab-is-default' : ''; ?>" data-id="<?php echo esc_attr( $address->id ); ?>" data-type="shipping">
 						<div class="sab-card-top">
 							<span class="sab-card-nickname">
 								<span class="dashicons dashicons-cart"></span>
 								<strong><?php echo esc_html( $nickname ); ?></strong>
 							</span>
-							<?php if ( $is_def ) : ?>
+							<?php if ( $is_default ) : ?>
 								<span class="sab-badge sab-default-badge"><?php esc_html_e( 'Default Shipping', 'smart-address-book' ); ?></span>
 							<?php endif; ?>
 						</div>
@@ -197,7 +200,7 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 							<button type="button" class="button button-small sab-action-delete" data-id="<?php echo esc_attr( $address->id ); ?>">
 								<?php esc_html_e( 'Delete', 'smart-address-book' ); ?>
 							</button>
-							<?php if ( ! $is_def ) : ?>
+							<?php if ( ! $is_default ) : ?>
 								<button type="button" class="button button-small sab-action-set-default" data-id="<?php echo esc_attr( $address->id ); ?>" data-type="shipping">
 									<?php esc_html_e( 'Set as Default', 'smart-address-book' ); ?>
 								</button>

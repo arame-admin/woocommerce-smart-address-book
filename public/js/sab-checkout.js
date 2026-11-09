@@ -17,23 +17,23 @@
 		/**
 		 * Helper: Populate WooCommerce checkout input fields.
 		 */
-		function populateCheckoutFields(prefix, addr) {
-			if (!addr) {
+		function populateCheckoutFields(prefix, address) {
+			if (!address) {
 				return;
 			}
 
 			var fields = {
-				'first_name': addr.first_name || '',
-				'last_name':  addr.last_name || '',
-				'company':    addr.company || '',
-				'country':    addr.country || '',
-				'address_1':  addr.address_1 || '',
-				'address_2':  addr.address_2 || '',
-				'city':       addr.city || '',
-				'state':      addr.state || '',
-				'postcode':   addr.postal_code || (addr.postcode || ''),
-				'phone':      addr.phone || '',
-				'email':      addr.email || ''
+				'first_name': address.first_name || '',
+				'last_name':  address.last_name || '',
+				'company':    address.company || '',
+				'country':    address.country || '',
+				'address_1':  address.address_1 || '',
+				'address_2':  address.address_2 || '',
+				'city':       address.city || '',
+				'state':      address.state || '',
+				'postcode':   address.postal_code || (address.postcode || ''),
+				'phone':      address.phone || '',
+				'email':      address.email || ''
 			};
 
 			$.each(fields, function(key, val) {
@@ -240,47 +240,47 @@
 		/**
 		 * Helper: Format address object into HTML lines for summary card.
 		 */
-		function formatAddressSummary(addr, type) {
-			if (!addr) {
+		function formatAddressSummary(address, addressType) {
+			if (!address) {
 				return '';
 			}
 			var lines = [];
-			var name = $.trim((addr.first_name || '') + ' ' + (addr.last_name || ''));
-			if (addr.nickname) {
-				name += ' (' + addr.nickname + ')';
+			var name = $.trim((address.first_name || '') + ' ' + (address.last_name || ''));
+			if (address.nickname) {
+				name += ' (' + address.nickname + ')';
 			}
 			if (name) {
 				lines.push('<strong>' + name + '</strong>');
 			}
-			if (addr.company) {
-				lines.push(addr.company);
+			if (address.company) {
+				lines.push(address.company);
 			}
-			var addrLine = addr.address_1 || '';
-			if (addr.address_2) {
-				addrLine += ', ' + addr.address_2;
+			var addrLine = address.address_1 || '';
+			if (address.address_2) {
+				addrLine += ', ' + address.address_2;
 			}
 			if (addrLine) {
 				lines.push(addrLine);
 			}
-			var cityLine = addr.city || '';
-			if (addr.state) {
-				cityLine += ', ' + addr.state;
+			var cityLine = address.city || '';
+			if (address.state) {
+				cityLine += ', ' + address.state;
 			}
-			if (addr.postal_code || addr.postcode) {
-				cityLine += ' ' + (addr.postal_code || addr.postcode);
+			if (address.postal_code || address.postcode) {
+				cityLine += ' ' + (address.postal_code || address.postcode);
 			}
 			if (cityLine) {
 				lines.push(cityLine);
 			}
-			if (addr.country) {
-				lines.push(addr.country);
+			if (address.country) {
+				lines.push(address.country);
 			}
 			var contact = [];
-			if (addr.phone) {
-				contact.push('Phone: ' + addr.phone);
+			if (address.phone) {
+				contact.push('Phone: ' + address.phone);
 			}
-			if (addr.email) {
-				contact.push('Email: ' + addr.email);
+			if (address.email) {
+				contact.push('Email: ' + address.email);
 			}
 			if (contact.length) {
 				lines.push(contact.join(' | '));
@@ -373,12 +373,12 @@
 						type: type,
 						nonce: sab_checkout_params.nonce
 					},
-					success: function(res) {
-						if (res.success && res.data.fields) {
-							$.each(res.data.fields, function(fieldKey, fieldVal) {
-								var $f = $('#' + fieldKey);
-								if ($f.length) {
-									$f.val(fieldVal).trigger('change');
+					success: function(response) {
+						if (response.success && response.data.fields) {
+							$.each(response.data.fields, function(fieldKey, fieldVal) {
+								var $field = $('#' + fieldKey);
+								if ($field.length) {
+									$field.val(fieldVal).trigger('change');
 								}
 							});
 							$(document.body).trigger('update_checkout');
@@ -449,11 +449,53 @@
 			});
 		}
 
+		/**
+		 * Ensure "Billing address" and "Shipping address" headings appear above
+		 * their respective saved address selector sections in Classic Checkout.
+		 */
+		function ensureCheckoutHeadingsOrder() {
+			// 1. Classic Billing Heading: ensure heading is above selector
+			var $billingSelector = $('.sab-checkout-billing-selector');
+			if ($billingSelector.length) {
+				var $billingParent = $billingSelector.closest('.woocommerce-billing-fields');
+				if (!$billingParent.length) {
+					$billingParent = $billingSelector.parent();
+				}
+				var $billingHeading = $billingParent.find('> h3, > h2, h3:first, h2:first').first();
+				if ($billingHeading.length) {
+					var bHeadNode = $billingHeading.get(0);
+					var bSelNode = $billingSelector.get(0);
+					if (bHeadNode && bSelNode && (bHeadNode.compareDocumentPosition(bSelNode) & 2)) {
+						$billingSelector.before($billingHeading);
+					}
+				}
+			}
+
+			// 2. Classic Shipping Heading: ensure heading is above selector
+			var $shippingSelector = $('.sab-checkout-shipping-selector');
+			if ($shippingSelector.length) {
+				var $shippingParent = $shippingSelector.closest('.woocommerce-shipping-fields, .shipping_address');
+				if (!$shippingParent.length) {
+					$shippingParent = $shippingSelector.parent();
+				}
+				var $shippingHeading = $shippingParent.find('#ship-to-different-address, > h3, > h2, h3:first, h2:first').first();
+				if ($shippingHeading.length) {
+					var sHeadNode = $shippingHeading.get(0);
+					var sSelNode = $shippingSelector.get(0);
+					if (sHeadNode && sSelNode && (sHeadNode.compareDocumentPosition(sSelNode) & 2)) {
+						$shippingSelector.before($shippingHeading);
+					}
+				}
+			}
+		}
+
 		initCheckoutAddressSummaries();
+		ensureCheckoutHeadingsOrder();
 
 		$(document.body).on('updated_checkout', function() {
 			$('#sab_shipping_summary_box').slice(1).remove();
 			$('#sab_billing_summary_box').slice(1).remove();
+			ensureCheckoutHeadingsOrder();
 		});
 
 		/**
@@ -734,12 +776,12 @@
 					type: 'POST',
 					dataType: 'json',
 					data: postData,
-					success: function(res) {
+					success: function(response) {
 						$saveBtn.prop('disabled', false).text(origText);
-						if (res.success && res.data) {
-							var newId   = res.data.address_id;
-							var rawAddr = res.data.address;
-							var label   = res.data.label;
+						if (response.success && response.data) {
+							var newId        = response.data.address_id;
+							var savedAddress = response.data.address;
+							var label        = response.data.label;
 
 							// Update Dropdown with newly saved address option
 							if ($dropdown.length) {
@@ -748,8 +790,8 @@
 									var $newOpt = $('<option></option>')
 										.val(newId)
 										.text(label)
-										.attr('data-address', JSON.stringify(rawAddr))
-										.data('address', rawAddr);
+										.attr('data-address', JSON.stringify(savedAddress))
+										.data('address', savedAddress);
 									var $newOptionPlaceholder = $dropdown.find('option[value="new"]');
 									if ($newOptionPlaceholder.length) {
 										$newOptionPlaceholder.before($newOpt);
@@ -765,8 +807,8 @@
 							$('#sab_' + type + '_address_id').val(newId);
 
 							// Update address summary text, badge, and display
-							$('#sab_' + type + '_summary_text').html(formatAddressSummary(rawAddr, type));
-							updateSummaryBadge(type, parseInt(res.data.is_default, 10) === 1);
+							$('#sab_' + type + '_summary_text').html(formatAddressSummary(savedAddress, type));
+							updateSummaryBadge(type, parseInt(response.data.is_default, 10) === 1);
 							if (type === 'shipping') {
 								$('.shipping_address').show();
 							}
@@ -780,12 +822,12 @@
 							$('.sab-checkout-save-' + type).removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
 							$actions.removeClass('sab-form-expanded').addClass('sab-form-collapsed').slideUp(250);
 						} else {
-							if (res.data && res.data.errors) {
+							if (response.data && response.data.errors) {
 								var srvErrors = {};
-								$.each(res.data.errors, function(fKey, fMsg) {
-									var inputId = prefix + '_' + fKey;
+								$.each(response.data.errors, function(fieldKey, errorMessage) {
+									var inputId = prefix + '_' + fieldKey;
 									if ($('#' + inputId).length) {
-										srvErrors[inputId] = fMsg;
+										srvErrors[inputId] = errorMessage;
 									} else if ($('#' + fKey).length) {
 										srvErrors[fKey] = fMsg;
 									} else if (fKey === 'email') {
@@ -1248,12 +1290,12 @@
 				type: 'POST',
 				dataType: 'json',
 				data: $form.serialize(),
-				success: function(res) {
+				success: function(response) {
 					$submitBtn.prop('disabled', false).text('Save and Use Address');
-					if (res.success && res.data) {
-						var newId = res.data.address_id;
-						var rawAddr = res.data.address;
-						var label = res.data.label;
+					if (response.success && response.data) {
+						var newId        = response.data.address_id;
+						var savedAddress = response.data.address;
+						var label        = response.data.label;
 
 						// Close modal immediately
 						$('#sab-checkout-address-modal').fadeOut(200);
@@ -1267,7 +1309,7 @@
 								var $newOpt = $('<option></option>')
 									.val(newId)
 									.text(label)
-									.attr('data-address', JSON.stringify(rawAddr));
+									.attr('data-address', JSON.stringify(savedAddress));
 								var $firstOpt = $dropdown.find('option:first');
 								if ($firstOpt.length) {
 									$firstOpt.after($newOpt);
@@ -1282,7 +1324,7 @@
 						$('#sab_' + type + '_address_id').val(newId);
 
 						// Populate checkout fields
-						populateCheckoutFields(prefix, rawAddr);
+						populateCheckoutFields(prefix, savedAddress);
 						$('.sab-checkout-save-' + type).slideUp();
 						$('.sab-checkout-' + type + '-selector .sab-edit-address-btn').show();
 
@@ -1290,7 +1332,7 @@
 						$(document).trigger('sab_address_created', {
 							type: type,
 							address_id: newId,
-							address: rawAddr,
+							address: savedAddress,
 							label: label
 						});
 						if (window.wp && window.wp.data && window.wp.data.dispatch) {
@@ -1299,9 +1341,9 @@
 								var checkoutStore = window.wp.data.dispatch('wc/store/checkout');
 								if (cartStore) {
 									if (type === 'shipping' && cartStore.setShippingAddress) {
-										cartStore.setShippingAddress(rawAddr);
+										cartStore.setShippingAddress(savedAddress);
 									} else if (type === 'billing' && cartStore.setBillingAddress) {
-										cartStore.setBillingAddress(rawAddr);
+										cartStore.setBillingAddress(savedAddress);
 									}
 								}
 								if (checkoutStore && checkoutStore.setExtensionData) {
@@ -1315,12 +1357,12 @@
 						}
 					} else {
 						// Server validation error
-						if (res.data && res.data.errors) {
-							applyFormErrors($form, res.data.errors, $modalBody);
+						if (response.data && response.data.errors) {
+							applyFormErrors($form, response.data.errors, $modalBody);
 						}
 
-						var msg = (res.data && res.data.message)
-							? res.data.message
+						var msg = (response.data && response.data.message)
+							? response.data.message
 							: ((sab_checkout_params.i18n && sab_checkout_params.i18n.error) ? sab_checkout_params.i18n.error : 'Error saving address.');
 						$notice.html(msg).fadeIn();
 					}

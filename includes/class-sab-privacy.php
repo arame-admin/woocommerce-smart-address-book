@@ -50,70 +50,70 @@ class SAB_Privacy {
 		$addresses = SAB_Database::get_addresses( $user->ID, '', 'id' );
 		$data_to_export = array();
 
-		foreach ( $addresses as $addr ) {
+		foreach ( $addresses as $address ) {
 			$item_data = array(
 				array(
 					'name'  => __( 'Nickname', 'smart-address-book' ),
-					'value' => $addr->nickname,
+					'value' => $address->nickname,
 				),
 				array(
 					'name'  => __( 'Type', 'smart-address-book' ),
-					'value' => ucfirst( $addr->address_type ),
+					'value' => ucfirst( $address->address_type ),
 				),
 				array(
 					'name'  => __( 'First Name', 'smart-address-book' ),
-					'value' => $addr->first_name,
+					'value' => $address->first_name,
 				),
 				array(
 					'name'  => __( 'Last Name', 'smart-address-book' ),
-					'value' => $addr->last_name,
+					'value' => $address->last_name,
 				),
 				array(
 					'name'  => __( 'Company', 'smart-address-book' ),
-					'value' => $addr->company,
+					'value' => $address->company,
 				),
 				array(
 					'name'  => __( 'Address 1', 'smart-address-book' ),
-					'value' => $addr->address_1,
+					'value' => $address->address_1,
 				),
 				array(
 					'name'  => __( 'Address 2', 'smart-address-book' ),
-					'value' => $addr->address_2,
+					'value' => $address->address_2,
 				),
 				array(
 					'name'  => __( 'City', 'smart-address-book' ),
-					'value' => $addr->city,
+					'value' => $address->city,
 				),
 				array(
 					'name'  => __( 'State', 'smart-address-book' ),
-					'value' => $addr->state,
+					'value' => $address->state,
 				),
 				array(
 					'name'  => __( 'Country', 'smart-address-book' ),
-					'value' => $addr->country,
+					'value' => $address->country,
 				),
 				array(
 					'name'  => __( 'Postcode', 'smart-address-book' ),
-					'value' => $addr->postal_code,
+					'value' => $address->postal_code,
 				),
 				array(
 					'name'  => __( 'Phone', 'smart-address-book' ),
-					'value' => $addr->phone,
+					'value' => $address->phone,
 				),
 				array(
 					'name'  => __( 'Email', 'smart-address-book' ),
-					'value' => $addr->email,
+					'value' => $address->email,
 				),
 				array(
 					'name'  => __( 'Is Default', 'smart-address-book' ),
-					'value' => $addr->is_default ? __( 'Yes', 'smart-address-book' ) : __( 'No', 'smart-address-book' ),
+					'value' => $address->is_default ? __( 'Yes', 'smart-address-book' ) : __( 'No', 'smart-address-book' ),
 				),
 			);
 
 			$data_to_export[] = array(
 				'group_id'    => 'smart_address_book',
 				'group_label' => __( 'Smart Address Book Saved Addresses', 'smart-address-book' ),
-				'item_id'     => 'sab-address-' . $addr->id,
+				'item_id'     => 'sab-address-' . $address->id,
 				'data'        => $item_data,
 			);
 		}

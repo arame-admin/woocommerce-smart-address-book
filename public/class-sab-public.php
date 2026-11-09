@@ -86,8 +86,11 @@ class SAB_Public {
 					'can_add_billing'          => $can_add_billing,
 					'can_add_shipping'         => $can_add_shipping,
 					'validate_required_fields' => $validate_req,
+					/* translators: %d: maximum allowed addresses */
 					'limit_message'            => sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ),
+					/* translators: %d: maximum allowed billing addresses */
 					'limit_message_billing'    => sprintf( __( 'You have reached the maximum limit of %d saved billing addresses.', 'smart-address-book' ), $max_allowed ),
+					/* translators: %d: maximum allowed shipping addresses */
 					'limit_message_shipping'   => sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses.', 'smart-address-book' ), $max_allowed ),
 					'i18n'     => array(
 						'confirm_delete'    => __( 'Are you sure you want to delete this address?', 'smart-address-book' ),
@@ -121,40 +124,40 @@ class SAB_Public {
 
 			$format_addr_fn = function( $list, $default_id ) {
 				$formatted = array();
-				foreach ( $list as $addr ) {
+				foreach ( $list as $address ) {
 					$label_parts = array();
-					if ( ! empty( $addr->nickname ) ) {
-						$label_parts[] = '[' . $addr->nickname . ']';
+					if ( ! empty( $address->nickname ) ) {
+						$label_parts[] = '[' . $address->nickname . ']';
 					}
-					$label_parts[] = trim( $addr->first_name . ' ' . $addr->last_name );
-					$label_parts[] = $addr->address_1;
-					$label_parts[] = $addr->city . ( $addr->postal_code ? ' ' . $addr->postal_code : '' );
+					$label_parts[] = trim( $address->first_name . ' ' . $address->last_name );
+					$label_parts[] = $address->address_1;
+					$label_parts[] = $address->city . ( $address->postal_code ? ' ' . $address->postal_code : '' );
 
 					$display_label = implode( ' — ', array_filter( $label_parts ) );
-					if ( (int) $addr->id === (int) $default_id || (int) $addr->is_default === 1 ) {
+					if ( (int) $address->id === (int) $default_id || (int) $address->is_default === 1 ) {
 						$display_label .= ' (' . __( 'Default', 'smart-address-book' ) . ')';
-					} elseif ( ! empty( $addr->is_recently_used ) ) {
+					} elseif ( ! empty( $address->is_recently_used ) ) {
 						$display_label .= ' (' . __( 'Recently Used', 'smart-address-book' ) . ')';
 					}
 
 					$formatted[] = array(
-						'id'               => (int) $addr->id,
+						'id'               => (int) $address->id,
 						'label'            => $display_label,
-						'is_default'       => ( (int) $addr->id === (int) $default_id || (int) $addr->is_default === 1 ),
-						'is_recently_used' => ! empty( $addr->is_recently_used ),
-						'raw'              => $addr,
+						'is_default'       => ( (int) $address->id === (int) $default_id || (int) $address->is_default === 1 ),
+						'is_recently_used' => ! empty( $address->is_recently_used ),
+						'raw'              => $address,
 						'wc_address'       => array(
-							'first_name' => $addr->first_name ?: '',
-							'last_name'  => $addr->last_name ?: '',
-							'company'    => $addr->company ?: '',
-							'address_1'  => $addr->address_1 ?: '',
-							'address_2'  => $addr->address_2 ?: '',
-							'city'       => $addr->city ?: '',
-							'state'      => $addr->state ?: '',
-							'postcode'   => $addr->postal_code ?: '',
-							'country'    => $addr->country ?: '',
-							'phone'      => $addr->phone ?: '',
-							'email'      => $addr->email ?: '',
+							'first_name' => $address->first_name ?: '',
+							'last_name'  => $address->last_name ?: '',
+							'company'    => $address->company ?: '',
+							'address_1'  => $address->address_1 ?: '',
+							'address_2'  => $address->address_2 ?: '',
+							'city'       => $address->city ?: '',
+							'state'      => $address->state ?: '',
+							'postcode'   => $address->postal_code ?: '',
+							'country'    => $address->country ?: '',
+							'phone'      => $address->phone ?: '',
+							'email'      => $address->email ?: '',
 						),
 					);
 				}
@@ -186,8 +189,11 @@ class SAB_Public {
 				'can_add_shipping'         => $can_add_shipping,
 				'validate_required_fields' => $validate_req,
 				'enable_checkout_save'     => $checkout_save,
+				/* translators: %d: maximum allowed addresses */
 				'limit_message'            => sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ),
+				/* translators: %d: maximum allowed billing addresses */
 				'limit_message_billing'    => sprintf( __( 'You have reached the maximum limit of %d saved billing addresses.', 'smart-address-book' ), $max_allowed ),
+				/* translators: %d: maximum allowed shipping addresses */
 				'limit_message_shipping'   => sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses.', 'smart-address-book' ), $max_allowed ),
 				'i18n'                => array(
 					'select_billing'    => __( 'Select a saved billing address:', 'smart-address-book' ),

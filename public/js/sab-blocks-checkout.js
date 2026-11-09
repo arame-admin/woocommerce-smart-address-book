@@ -101,47 +101,47 @@
 		/**
 		 * Helper: Format address object into HTML lines for summary card.
 		 */
-		function formatAddressSummary(addr, type) {
-			if (!addr) {
+		function formatAddressSummary(address, addressType) {
+			if (!address) {
 				return '';
 			}
 			var lines = [];
-			var name = $.trim((addr.first_name || '') + ' ' + (addr.last_name || ''));
-			if (addr.nickname) {
-				name += ' (' + addr.nickname + ')';
+			var name = $.trim((address.first_name || '') + ' ' + (address.last_name || ''));
+			if (address.nickname) {
+				name += ' (' + address.nickname + ')';
 			}
 			if (name) {
 				lines.push('<strong>' + name + '</strong>');
 			}
-			if (addr.company) {
-				lines.push(addr.company);
+			if (address.company) {
+				lines.push(address.company);
 			}
-			var addrLine = addr.address_1 || '';
-			if (addr.address_2) {
-				addrLine += ', ' + addr.address_2;
+			var addrLine = address.address_1 || '';
+			if (address.address_2) {
+				addrLine += ', ' + address.address_2;
 			}
 			if (addrLine) {
 				lines.push(addrLine);
 			}
-			var cityLine = addr.city || '';
-			if (addr.state) {
-				cityLine += ', ' + addr.state;
+			var cityLine = address.city || '';
+			if (address.state) {
+				cityLine += ', ' + address.state;
 			}
-			if (addr.postal_code || addr.postcode) {
-				cityLine += ' ' + (addr.postal_code || addr.postcode);
+			if (address.postal_code || address.postcode) {
+				cityLine += ' ' + (address.postal_code || address.postcode);
 			}
 			if (cityLine) {
 				lines.push(cityLine);
 			}
-			if (addr.country) {
-				lines.push(addr.country);
+			if (address.country) {
+				lines.push(address.country);
 			}
 			var contact = [];
-			if (addr.phone) {
-				contact.push('Phone: ' + addr.phone);
+			if (address.phone) {
+				contact.push('Phone: ' + address.phone);
 			}
-			if (addr.email) {
-				contact.push('Email: ' + addr.email);
+			if (address.email) {
+				contact.push('Email: ' + address.email);
 			}
 			if (contact.length) {
 				lines.push(contact.join(' | '));
@@ -313,11 +313,11 @@
 			var $shippingSection = $blockCheckout.find('.wc-block-checkout__shipping-fields, .wp-block-woocommerce-checkout-shipping-address-block');
 			if ($shippingSection.length) {
 				$shippingSection.find('.wc-block-components-address-form-wrapper, .wc-block-components-address-form, .wc-block-components-address-card-wrapper, .wc-block-components-address-card').hide();
-				if ($shippingSection.find('.sab-blocks-shipping-selector').length > 1) {
-					$shippingSection.find('.sab-blocks-shipping-selector:not(:first)').remove();
+				if ($blockCheckout.find('.sab-blocks-shipping-selector').length > 1) {
+					$blockCheckout.find('.sab-blocks-shipping-selector:not(:first)').remove();
 				}
-				if ($shippingSection.find('#sab_blocks_shipping_summary_box').length > 1) {
-					$shippingSection.find('#sab_blocks_shipping_summary_box:not(:first)').remove();
+				if ($blockCheckout.find('#sab_blocks_shipping_summary_box').length > 1) {
+					$blockCheckout.find('#sab_blocks_shipping_summary_box:not(:first)').remove();
 				}
 
 				// Keep SAB full shipping form hidden by default until Edit is clicked
@@ -331,11 +331,11 @@
 			var $billingSection = $blockCheckout.find('.wc-block-checkout__billing-fields, .wp-block-woocommerce-checkout-billing-address-block');
 			if ($billingSection.length) {
 				$billingSection.find('.wc-block-components-address-form-wrapper, .wc-block-components-address-form, .wc-block-components-address-card-wrapper, .wc-block-components-address-card').hide();
-				if ($billingSection.find('.sab-blocks-billing-selector').length > 1) {
-					$billingSection.find('.sab-blocks-billing-selector:not(:first)').remove();
+				if ($blockCheckout.find('.sab-blocks-billing-selector').length > 1) {
+					$blockCheckout.find('.sab-blocks-billing-selector:not(:first)').remove();
 				}
-				if ($billingSection.find('#sab_blocks_billing_summary_box').length > 1) {
-					$billingSection.find('#sab_blocks_billing_summary_box:not(:first)').remove();
+				if ($blockCheckout.find('#sab_blocks_billing_summary_box').length > 1) {
+					$blockCheckout.find('#sab_blocks_billing_summary_box:not(:first)').remove();
 				}
 
 				// Keep SAB full billing form hidden by default until Edit is clicked
@@ -348,6 +348,7 @@
 
 		/**
 		 * Inject selectors into WooCommerce Checkout Block DOM.
+		 * Places the saved address selectors below their respective section headings.
 		 */
 		function mountBlocksSelectors() {
 			var $blockCheckout = $('.wp-block-woocommerce-checkout');
@@ -357,18 +358,54 @@
 
 			// 1. Mount Shipping Selector
 			if (settings.enable_shipping && shippingAddresses.length > 0) {
-				var $shippingSection = $blockCheckout.find('.wc-block-checkout__shipping-fields, .wp-block-woocommerce-checkout-shipping-address-block').first();
-				if ($shippingSection.length && !$shippingSection.find('.sab-blocks-shipping-selector').length) {
-					var shippingHtml = buildSelectorHtml('shipping', shippingAddresses, defaultShippingId);
-					// Prepend to shipping address section
-					$shippingSection.prepend(shippingHtml);
+				var $shippingBlock = $blockCheckout.find('.wp-block-woocommerce-checkout-shipping-address-block').first();
+				if (!$shippingBlock.length) {
+					$shippingBlock = $blockCheckout.find('.wc-block-checkout__shipping-fields').first().closest('.wc-block-components-checkout-step, .wp-block-woocommerce-checkout-shipping-address-block');
+				}
+				if (!$shippingBlock.length) {
+					$shippingBlock = $blockCheckout.find('.wc-block-checkout__shipping-fields').first();
+				}
 
-					// Auto-select default
-					if (defaultShippingId) {
-						var defaultShipping = shippingAddresses.find(function(a) { return a.id === defaultShippingId; }) || shippingAddresses[0];
-						if (defaultShipping) {
-							dispatchAddressToStore('shipping', defaultShipping.wc_address || defaultShipping.raw);
-							updateBlockExtensionData('shipping_address_id', defaultShipping.id);
+				if ($shippingBlock.length) {
+					var $shippingTitle = $shippingBlock.find('.wc-block-components-checkout-step__title, .wc-block-components-title, h2, h3').first();
+					var $shippingDesc = $shippingBlock.find('.wc-block-components-checkout-step__description').first();
+					var $shippingFields = $shippingBlock.find('.wc-block-checkout__shipping-fields, .wc-block-components-checkout-step__container').first();
+					var $existingShippingSelector = $blockCheckout.find('.sab-blocks-shipping-selector');
+
+					if (!$existingShippingSelector.length) {
+						var shippingHtml = buildSelectorHtml('shipping', shippingAddresses, defaultShippingId);
+						if ($shippingFields.length) {
+							$shippingFields.prepend(shippingHtml);
+						} else if ($shippingDesc.length) {
+							$shippingDesc.after(shippingHtml);
+						} else if ($shippingTitle.length) {
+							$shippingTitle.after(shippingHtml);
+						} else {
+							$shippingBlock.prepend(shippingHtml);
+						}
+
+						// Auto-select default
+						if (defaultShippingId) {
+							var defaultShipping = shippingAddresses.find(function(a) { return a.id === defaultShippingId; }) || shippingAddresses[0];
+							if (defaultShipping) {
+								dispatchAddressToStore('shipping', defaultShipping.wc_address || defaultShipping.raw);
+								updateBlockExtensionData('shipping_address_id', defaultShipping.id);
+							}
+						}
+					} else if ($shippingTitle.length && $existingShippingSelector.length) {
+						// Ensure "Shipping address" heading is above saved shipping selector
+						var titleNode = $shippingTitle.get(0);
+						var selectorNode = $existingShippingSelector.get(0);
+						if (titleNode && selectorNode) {
+							var comp = titleNode.compareDocumentPosition(selectorNode);
+							// Node.DOCUMENT_POSITION_PRECEDING = 2 (meaning selector precedes heading)
+							if (comp & 2) {
+								if ($shippingFields.length) {
+									$shippingFields.prepend($existingShippingSelector);
+								} else {
+									$shippingTitle.after($existingShippingSelector);
+								}
+							}
 						}
 					}
 				}
@@ -376,18 +413,53 @@
 
 			// 2. Mount Billing Selector
 			if (settings.enable_billing && billingAddresses.length > 0) {
-				var $billingSection = $blockCheckout.find('.wc-block-checkout__billing-fields, .wp-block-woocommerce-checkout-billing-address-block').first();
-				if ($billingSection.length && !$billingSection.find('.sab-blocks-billing-selector').length) {
-					var billingHtml = buildSelectorHtml('billing', billingAddresses, defaultBillingId);
-					// Prepend to billing address section
-					$billingSection.prepend(billingHtml);
+				var $billingBlock = $blockCheckout.find('.wp-block-woocommerce-checkout-billing-address-block').first();
+				if (!$billingBlock.length) {
+					$billingBlock = $blockCheckout.find('.wc-block-checkout__billing-fields').first().closest('.wc-block-components-checkout-step, .wp-block-woocommerce-checkout-billing-address-block');
+				}
+				if (!$billingBlock.length) {
+					$billingBlock = $blockCheckout.find('.wc-block-checkout__billing-fields').first();
+				}
 
-					// Auto-select default
-					if (defaultBillingId) {
-						var defaultBilling = billingAddresses.find(function(a) { return a.id === defaultBillingId; }) || billingAddresses[0];
-						if (defaultBilling) {
-							dispatchAddressToStore('billing', defaultBilling.wc_address || defaultBilling.raw);
-							updateBlockExtensionData('billing_address_id', defaultBilling.id);
+				if ($billingBlock.length) {
+					var $billingTitle = $billingBlock.find('.wc-block-components-checkout-step__title, .wc-block-components-title, h2, h3').first();
+					var $billingDesc = $billingBlock.find('.wc-block-components-checkout-step__description').first();
+					var $billingFields = $billingBlock.find('.wc-block-checkout__billing-fields, .wc-block-components-checkout-step__container').first();
+					var $existingBillingSelector = $blockCheckout.find('.sab-blocks-billing-selector');
+
+					if (!$existingBillingSelector.length) {
+						var billingHtml = buildSelectorHtml('billing', billingAddresses, defaultBillingId);
+						if ($billingFields.length) {
+							$billingFields.prepend(billingHtml);
+						} else if ($billingDesc.length) {
+							$billingDesc.after(billingHtml);
+						} else if ($billingTitle.length) {
+							$billingTitle.after(billingHtml);
+						} else {
+							$billingBlock.prepend(billingHtml);
+						}
+
+						// Auto-select default
+						if (defaultBillingId) {
+							var defaultBilling = billingAddresses.find(function(a) { return a.id === defaultBillingId; }) || billingAddresses[0];
+							if (defaultBilling) {
+								dispatchAddressToStore('billing', defaultBilling.wc_address || defaultBilling.raw);
+								updateBlockExtensionData('billing_address_id', defaultBilling.id);
+							}
+						}
+					} else if ($billingTitle.length && $existingBillingSelector.length) {
+						// Ensure "Billing address" heading is above saved billing selector
+						var bTitleNode = $billingTitle.get(0);
+						var bSelectorNode = $existingBillingSelector.get(0);
+						if (bTitleNode && bSelectorNode) {
+							var bComp = bTitleNode.compareDocumentPosition(bSelectorNode);
+							if (bComp & 2) {
+								if ($billingFields.length) {
+									$billingFields.prepend($existingBillingSelector);
+								} else {
+									$billingTitle.after($existingBillingSelector);
+								}
+							}
 						}
 					}
 				}

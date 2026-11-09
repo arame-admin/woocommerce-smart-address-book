@@ -62,9 +62,19 @@ class SAB_Admin {
 	 * @param string $hook Screen hook.
 	 */
 	public function enqueue_admin_assets( $hook ) {
+		$screen          = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 		$is_settings_tab = ( isset( $_GET['page'], $_GET['tab'] ) && 'wc-settings' === $_GET['page'] && 'sab_address_book' === $_GET['tab'] );
 		$is_user_screen  = in_array( $hook, array( 'user-edit.php', 'profile.php' ), true );
-		$is_order_screen = in_array( $hook, array( 'post.php', 'post-new.php', 'woocommerce_page_wc-orders' ), true );
+		$is_order_screen = false;
+
+		if ( 'woocommerce_page_wc-orders' === $hook ) {
+			// HPOS order edit screen
+			$is_order_screen = true;
+		} elseif ( in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) {
+			// Classic post editor screen - only for shop_order post type
+			$post_type       = $screen ? $screen->post_type : ( $_GET['post_type'] ?? ( isset( $_GET['post'] ) ? get_post_type( absint( $_GET['post'] ) ) : '' ) );
+			$is_order_screen = ( 'shop_order' === $post_type );
+		}
 
 		if ( ! $is_settings_tab && ! $is_user_screen && ! $is_order_screen ) {
 			return;

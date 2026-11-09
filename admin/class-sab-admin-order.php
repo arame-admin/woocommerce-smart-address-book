@@ -34,7 +34,8 @@ class SAB_Admin_Order {
 			return;
 		}
 
-		$type = 'billing';
+		$address_type = 'billing';
+		$type         = $address_type;
 		include SAB_PLUGIN_DIR . 'admin/views/order-address-picker.php';
 	}
 
@@ -54,7 +55,8 @@ class SAB_Admin_Order {
 			return;
 		}
 
-		$type = 'shipping';
+		$address_type = 'shipping';
+		$type         = $address_type;
 		include SAB_PLUGIN_DIR . 'admin/views/order-address-picker.php';
 	}
 }

@@ -121,40 +121,40 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 
 		$format_address_list = function( $list, $default_id ) {
 			$formatted = array();
-			foreach ( $list as $addr ) {
+			foreach ( $list as $address ) {
 				$label_parts = array();
-				if ( ! empty( $addr->nickname ) ) {
-					$label_parts[] = '[' . $addr->nickname . ']';
+				if ( ! empty( $address->nickname ) ) {
+					$label_parts[] = '[' . $address->nickname . ']';
 				}
-				$label_parts[] = trim( $addr->first_name . ' ' . $addr->last_name );
-				$label_parts[] = $addr->address_1;
-				$label_parts[] = $addr->city . ( $addr->postal_code ? ' ' . $addr->postal_code : '' );
+				$label_parts[] = trim( $address->first_name . ' ' . $address->last_name );
+				$label_parts[] = $address->address_1;
+				$label_parts[] = $address->city . ( $address->postal_code ? ' ' . $address->postal_code : '' );
 
 				$display_label = implode( ' — ', array_filter( $label_parts ) );
-				if ( (int) $addr->id === (int) $default_id || (int) $addr->is_default === 1 ) {
+				if ( (int) $address->id === (int) $default_id || (int) $address->is_default === 1 ) {
 					$display_label .= ' (' . __( 'Default', 'smart-address-book' ) . ')';
-				} elseif ( ! empty( $addr->is_recently_used ) ) {
+				} elseif ( ! empty( $address->is_recently_used ) ) {
 					$display_label .= ' (' . __( 'Recently Used', 'smart-address-book' ) . ')';
 				}
 
 				$formatted[] = array(
-					'id'               => (int) $addr->id,
+					'id'               => (int) $address->id,
 					'label'            => $display_label,
-					'is_default'       => ( (int) $addr->id === (int) $default_id || (int) $addr->is_default === 1 ),
-					'is_recently_used' => ! empty( $addr->is_recently_used ),
-					'raw'              => $addr,
+					'is_default'       => ( (int) $address->id === (int) $default_id || (int) $address->is_default === 1 ),
+					'is_recently_used' => ! empty( $address->is_recently_used ),
+					'raw'              => $address,
 					'wc_address'       => array(
-						'first_name' => $addr->first_name ?: '',
-						'last_name'  => $addr->last_name ?: '',
-						'company'    => $addr->company ?: '',
-						'address_1'  => $addr->address_1 ?: '',
-						'address_2'  => $addr->address_2 ?: '',
-						'city'       => $addr->city ?: '',
-						'state'      => $addr->state ?: '',
-						'postcode'   => $addr->postal_code ?: '',
-						'country'    => $addr->country ?: '',
-						'phone'      => $addr->phone ?: '',
-						'email'      => $addr->email ?: '',
+						'first_name' => $address->first_name ?: '',
+						'last_name'  => $address->last_name ?: '',
+						'company'    => $address->company ?: '',
+						'address_1'  => $address->address_1 ?: '',
+						'address_2'  => $address->address_2 ?: '',
+						'city'       => $address->city ?: '',
+						'state'      => $address->state ?: '',
+						'postcode'   => $address->postal_code ?: '',
+						'country'    => $address->country ?: '',
+						'phone'      => $address->phone ?: '',
+						'email'      => $address->email ?: '',
 					),
 				);
 			}
@@ -167,7 +167,9 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 		$can_add                = $can_add_billing || $can_add_shipping;
 		$validate_req           = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
 		$checkout_save          = 'yes' === get_option( 'sab_enable_checkout_save', 'yes' );
+		/* translators: %d: maximum allowed billing addresses */
 		$limit_message_billing  = sprintf( __( 'You have reached the maximum limit of %d saved billing addresses.', 'smart-address-book' ), $max_allowed );
+		/* translators: %d: maximum allowed shipping addresses */
 		$limit_message_shipping = sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses.', 'smart-address-book' ), $max_allowed );
 
 		return array(
@@ -184,6 +186,7 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 			'can_add_shipping'         => $can_add_shipping,
 			'validate_required_fields' => $validate_req,
 			'enable_checkout_save'     => $checkout_save,
+			/* translators: %d: maximum allowed addresses */
 			'limit_message'            => sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ),
 			'limit_message_billing'    => $limit_message_billing,
 			'limit_message_shipping'   => $limit_message_shipping,
@@ -235,8 +238,10 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 	 */
 	public function get_store_api_data() {
 		$user_id          = get_current_user_id();
-		$default_billing  = SAB_Database::get_default_address( $user_id, 'billing' );
-		$default_shipping = SAB_Database::get_default_address( $user_id, 'shipping' );
+		$enable_billing   = 'yes' === get_option( 'sab_enable_billing', 'yes' );
+		$enable_shipping  = 'yes' === get_option( 'sab_enable_shipping', 'yes' );
+		$default_billing  = ( $user_id && $enable_billing ) ? SAB_Database::get_default_address( $user_id, 'billing' ) : null;
+		$default_shipping = ( $user_id && $enable_shipping ) ? SAB_Database::get_default_address( $user_id, 'shipping' ) : null;
 
 		return array(
 			'billing_address_id'  => $default_billing ? (int) $default_billing->id : 0,
@@ -254,16 +259,31 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 		$extensions = $request->get_param( 'extensions' );
 		$sab_data   = $extensions['smart-address-book'] ?? array();
 
-		if ( ! empty( $sab_data['billing_address_id'] ) ) {
-			$billing_id = absint( $sab_data['billing_address_id'] );
-			$order->update_meta_data( '_sab_billing_address_id', $billing_id );
-			SAB_Database::update_last_used( $billing_id );
+		$customer_id = (int) $order->get_customer_id();
+		if ( ! $customer_id ) {
+			$customer_id = get_current_user_id();
 		}
 
-		if ( ! empty( $sab_data['shipping_address_id'] ) ) {
-			$shipping_id = absint( $sab_data['shipping_address_id'] );
-			$order->update_meta_data( '_sab_shipping_address_id', $shipping_id );
-			SAB_Database::update_last_used( $shipping_id );
+		if ( $customer_id <= 0 ) {
+			return;
+		}
+
+		if ( ! empty( $sab_data['billing_address_id'] ) && 'yes' === get_option( 'sab_enable_billing', 'yes' ) ) {
+			$billing_id      = absint( $sab_data['billing_address_id'] );
+			$billing_address = SAB_Database::get_address( $billing_id );
+			if ( $billing_address && (int) $billing_address->user_id === $customer_id && 'billing' === $billing_address->address_type ) {
+				$order->update_meta_data( '_sab_billing_address_id', $billing_id );
+				SAB_Database::update_last_used( $billing_id );
+			}
+		}
+
+		if ( ! empty( $sab_data['shipping_address_id'] ) && 'yes' === get_option( 'sab_enable_shipping', 'yes' ) ) {
+			$shipping_id      = absint( $sab_data['shipping_address_id'] );
+			$shipping_address = SAB_Database::get_address( $shipping_id );
+			if ( $shipping_address && (int) $shipping_address->user_id === $customer_id && 'shipping' === $shipping_address->address_type ) {
+				$order->update_meta_data( '_sab_shipping_address_id', $shipping_id );
+				SAB_Database::update_last_used( $shipping_id );
+			}
 		}
 	}
 }

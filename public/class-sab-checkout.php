@@ -42,17 +42,32 @@ class SAB_Checkout {
 	 * @param array     $data Checkout data.
 	 */
 	public function save_order_address_meta( $order, $data ) {
+		$customer_id = (int) $order->get_customer_id();
+		if ( ! $customer_id ) {
+			$customer_id = get_current_user_id();
+		}
+
+		if ( $customer_id <= 0 ) {
+			return;
+		}
+
 		$billing_id  = absint( $_POST['sab_billing_address_id'] ?? 0 );
 		$shipping_id = absint( $_POST['sab_shipping_address_id'] ?? 0 );
 
-		if ( $billing_id > 0 ) {
-			$order->update_meta_data( '_sab_billing_address_id', $billing_id );
-			SAB_Database::update_last_used( $billing_id );
+		if ( $billing_id > 0 && 'yes' === get_option( 'sab_enable_billing', 'yes' ) ) {
+			$billing_address = SAB_Database::get_address( $billing_id );
+			if ( $billing_address && (int) $billing_address->user_id === $customer_id && 'billing' === $billing_address->address_type ) {
+				$order->update_meta_data( '_sab_billing_address_id', $billing_id );
+				SAB_Database::update_last_used( $billing_id );
+			}
 		}
 
-		if ( $shipping_id > 0 ) {
-			$order->update_meta_data( '_sab_shipping_address_id', $shipping_id );
-			SAB_Database::update_last_used( $shipping_id );
+		if ( $shipping_id > 0 && 'yes' === get_option( 'sab_enable_shipping', 'yes' ) ) {
+			$shipping_address = SAB_Database::get_address( $shipping_id );
+			if ( $shipping_address && (int) $shipping_address->user_id === $customer_id && 'shipping' === $shipping_address->address_type ) {
+				$order->update_meta_data( '_sab_shipping_address_id', $shipping_id );
+				SAB_Database::update_last_used( $shipping_id );
+			}
 		}
 	}
 
@@ -71,8 +86,9 @@ class SAB_Checkout {
 			return;
 		}
 
-		$type       = 'billing';
-		$default    = SAB_Database::get_default_address( $user_id, 'billing' );
+		$address_type = 'billing';
+		$type         = $address_type;
+		$default      = SAB_Database::get_default_address( $user_id, 'billing' );
 		$default_id = $default ? (int) $default->id : 0;
 
 		$template_path = SAB_PLUGIN_DIR . 'public/views/checkout-selector.php';
@@ -94,8 +110,9 @@ class SAB_Checkout {
 			return;
 		}
 
-		$type       = 'shipping';
-		$default    = SAB_Database::get_default_address( $user_id, 'shipping' );
+		$address_type = 'shipping';
+		$type         = $address_type;
+		$default      = SAB_Database::get_default_address( $user_id, 'shipping' );
 		$default_id = $default ? (int) $default->id : 0;
 
 		$template_path = SAB_PLUGIN_DIR . 'public/views/checkout-selector.php';
@@ -163,25 +180,26 @@ class SAB_Checkout {
 	/**
 	 * Output the save address checkbox and nickname field.
 	 *
-	 * @param string $type 'billing' or 'shipping'.
+	 * @param string $address_type 'billing' or 'shipping'.
 	 */
-	private function render_save_fields( $type ) {
+	private function render_save_fields( $address_type ) {
 		$allow_nickname = 'yes' === get_option( 'sab_enable_nickname', 'yes' );
+		$type           = $address_type;
 		?>
-		<div class="sab-checkout-save-wrapper sab-checkout-save-<?php echo esc_attr( $type ); ?>">
+		<div class="sab-checkout-save-wrapper sab-checkout-save-<?php echo esc_attr( $address_type ); ?>">
 			<p class="form-row form-row-wide">
 				<label class="woocommerce-form__label woocommerce-form__label-for-checkbox checkbox">
-					<input type="checkbox" class="woocommerce-form__input woocommerce-form__input-checkbox input-checkbox sab-save-checkout-checkbox" name="sab_save_<?php echo esc_attr( $type ); ?>" id="sab_save_<?php echo esc_attr( $type ); ?>" value="1" />
+					<input type="checkbox" class="woocommerce-form__input woocommerce-form__input-checkbox input-checkbox sab-save-checkout-checkbox" name="sab_save_<?php echo esc_attr( $address_type ); ?>" id="sab_save_<?php echo esc_attr( $address_type ); ?>" value="1" />
 					<span><?php esc_html_e( 'Save this address to my address book', 'smart-address-book' ); ?></span>
 				</label>
 			</p>
 
 			<?php if ( $allow_nickname ) : ?>
-			<p class="form-row form-row-wide sab-checkout-nickname-row" style="display:none;" id="sab_nickname_row_<?php echo esc_attr( $type ); ?>">
-				<label for="sab_nickname_<?php echo esc_attr( $type ); ?>">
+			<p class="form-row form-row-wide sab-checkout-nickname-row" style="display:none;" id="sab_nickname_row_<?php echo esc_attr( $address_type ); ?>">
+				<label for="sab_nickname_<?php echo esc_attr( $address_type ); ?>">
 					<?php esc_html_e( 'Address Nickname / Label', 'smart-address-book' ); ?> <span class="optional">(<?php esc_html_e( 'optional', 'smart-address-book' ); ?>)</span>
 				</label>
-				<input type="text" class="input-text" name="sab_nickname_<?php echo esc_attr( $type ); ?>" id="sab_nickname_<?php echo esc_attr( $type ); ?>" placeholder="<?php esc_attr_e( 'e.g. Home, Office, Vacation House', 'smart-address-book' ); ?>" />
+				<input type="text" class="input-text" name="sab_nickname_<?php echo esc_attr( $address_type ); ?>" id="sab_nickname_<?php echo esc_attr( $address_type ); ?>" placeholder="<?php esc_attr_e( 'e.g. Home, Office, Vacation House', 'smart-address-book' ); ?>" />
 			</p>
 			<?php endif; ?>
 		</div>
@@ -231,10 +249,10 @@ class SAB_Checkout {
 			);
 
 			if ( SAB_Database::can_add_address( $user_id, 'billing' ) && ! is_wp_error( SAB_Address::validate( $billing_data ) ) ) {
-				$new_b_id = SAB_Database::add_address( $billing_data );
-				if ( $new_b_id ) {
-					$order->update_meta_data( '_sab_billing_address_id', $new_b_id );
-					SAB_Database::update_last_used( $new_b_id );
+				$new_billing_id = SAB_Database::add_address( $billing_data );
+				if ( $new_billing_id ) {
+					$order->update_meta_data( '_sab_billing_address_id', $new_billing_id );
+					SAB_Database::update_last_used( $new_billing_id );
 					$order->save();
 				}
 			}
@@ -266,10 +284,10 @@ class SAB_Checkout {
 			);
 
 			if ( SAB_Database::can_add_address( $user_id, 'shipping' ) && ! is_wp_error( SAB_Address::validate( $shipping_data ) ) ) {
-				$new_s_id = SAB_Database::add_address( $shipping_data );
-				if ( $new_s_id ) {
-					$order->update_meta_data( '_sab_shipping_address_id', $new_s_id );
-					SAB_Database::update_last_used( $new_s_id );
+				$new_shipping_id = SAB_Database::add_address( $shipping_data );
+				if ( $new_shipping_id ) {
+					$order->update_meta_data( '_sab_shipping_address_id', $new_shipping_id );
+					SAB_Database::update_last_used( $new_shipping_id );
 					$order->save();
 				}
 			}

@@ -153,11 +153,11 @@
 						$section.find('.sab-default-badge').remove();
 
 						$section.find('.sab-card').each(function() {
-							var $c = $(this);
-							var cid = $c.data('id');
-							var $actions = $c.find('.sab-card-actions');
-							if (!$actions.find('.sab-action-set-default').length && cid != addressId) {
-								$actions.append('<button type="button" class="button button-small sab-action-set-default" data-id="' + cid + '" data-type="' + type + '">Set as Default</button>');
+							var $cardItem = $(this);
+							var cardAddressId = $cardItem.data('id');
+							var $actions = $cardItem.find('.sab-card-actions');
+							if (!$actions.find('.sab-action-set-default').length && cardAddressId != addressId) {
+								$actions.append('<button type="button" class="button button-small sab-action-set-default" data-id="' + cardAddressId + '" data-type="' + type + '">Set as Default</button>');
 							}
 						});
 
@@ -293,33 +293,33 @@
 
 						// Build table rows
 						var rowsHtml = '';
-						$.each(sabParsedImportAddresses, function(idx, addr) {
-							var isBilling = (addr.address_type === 'billing');
+						$.each(sabParsedImportAddresses, function(index, importAddress) {
+							var isBilling = (importAddress.address_type === 'billing');
 							var typeBadge = isBilling
-								? '<span class="sab-badge sab-badge-billing">' + ( (addr.address_type_label) ? addr.address_type_label : 'Billing' ) + '</span>'
-								: '<span class="sab-badge sab-badge-shipping">' + ( (addr.address_type_label) ? addr.address_type_label : 'Shipping' ) + '</span>';
-							var defaultBadge = (parseInt(addr.is_default, 10) === 1)
+								? '<span class="sab-badge sab-badge-billing">' + ( (importAddress.address_type_label) ? importAddress.address_type_label : 'Billing' ) + '</span>'
+								: '<span class="sab-badge sab-badge-shipping">' + ( (importAddress.address_type_label) ? importAddress.address_type_label : 'Shipping' ) + '</span>';
+							var defaultBadge = (parseInt(importAddress.is_default, 10) === 1)
 								? ' <span class="sab-badge sab-default-badge" style="font-size:10px; padding:2px 5px; margin-left:4px;">Default</span>'
 								: '';
-							var name = $.trim((addr.first_name || '') + ' ' + (addr.last_name || ''));
+							var name = $.trim((importAddress.first_name || '') + ' ' + (importAddress.last_name || ''));
 							var addrParts = [];
-							if (addr.address_1) addrParts.push(addr.address_1);
-							if (addr.address_2) addrParts.push(addr.address_2);
+							if (importAddress.address_1) addrParts.push(importAddress.address_1);
+							if (importAddress.address_2) addrParts.push(importAddress.address_2);
 							var cityParts = [];
-							if (addr.city) cityParts.push(addr.city);
-							if (addr.state) cityParts.push(addr.state);
-							if (addr.postal_code) cityParts.push(addr.postal_code);
-							if (addr.country) cityParts.push(addr.country);
+							if (importAddress.city) cityParts.push(importAddress.city);
+							if (importAddress.state) cityParts.push(importAddress.state);
+							if (importAddress.postal_code) cityParts.push(importAddress.postal_code);
+							if (importAddress.country) cityParts.push(importAddress.country);
 
 							var contactParts = [];
-							if (addr.phone) contactParts.push('Phone: ' + addr.phone);
-							if (addr.email) contactParts.push('Email: ' + addr.email);
+							if (importAddress.phone) contactParts.push('Phone: ' + importAddress.phone);
+							if (importAddress.email) contactParts.push('Email: ' + importAddress.email);
 
-							rowsHtml += '<tr data-index="' + idx + '">';
-							rowsHtml += '  <td class="sab-td-cb" style="text-align:center;"><input type="checkbox" class="sab-import-row-cb" data-index="' + idx + '" checked /></td>';
+							rowsHtml += '<tr data-index="' + index + '">';
+							rowsHtml += '  <td class="sab-td-cb" style="text-align:center;"><input type="checkbox" class="sab-import-row-cb" data-index="' + index + '" checked /></td>';
 							rowsHtml += '  <td>' + typeBadge + '</td>';
-							rowsHtml += '  <td><strong>' + escapeHtml(addr.nickname || '') + '</strong>' + defaultBadge + '</td>';
-							rowsHtml += '  <td>' + escapeHtml(name) + (addr.company ? '<br/><small style="color:#666;">' + escapeHtml(addr.company) + '</small>' : '') + '</td>';
+							rowsHtml += '  <td><strong>' + escapeHtml(importAddress.nickname || '') + '</strong>' + defaultBadge + '</td>';
+							rowsHtml += '  <td>' + escapeHtml(name) + (importAddress.company ? '<br/><small style="color:#666;">' + escapeHtml(importAddress.company) + '</small>' : '') + '</td>';
 							rowsHtml += '  <td>' + escapeHtml(addrParts.join(', ')) + (cityParts.length ? '<br/><small style="color:#666;">' + escapeHtml(cityParts.join(', ')) + '</small>' : '') + '</td>';
 							rowsHtml += '  <td><small>' + contactParts.map(escapeHtml).join('<br/>') + '</small></td>';
 							rowsHtml += '</tr>';
@@ -450,10 +450,10 @@
 					$('#sab-import-action-btn').prop('disabled', false);
 
 					if (response.success && response.data) {
-						var res = response.data;
-						var msg = 'Import finished: ' + res.imported + ' imported, ' + res.skipped + ' skipped.';
-						if (res.errors && res.errors.length) {
-							msg += '<br/>Errors:<br/>' + res.errors.join('<br/>');
+						var importResult = response.data;
+						var msg = 'Import finished: ' + importResult.imported + ' imported, ' + importResult.skipped + ' skipped.';
+						if (importResult.errors && importResult.errors.length) {
+							msg += '<br/>Errors:<br/>' + importResult.errors.join('<br/>');
 						}
 
 						// Close modal
