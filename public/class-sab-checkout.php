@@ -10,9 +10,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 class SAB_Checkout {
 
 	/**
+	 * Flag indicating whether Contact Information email field is currently rendering.
+	 *
+	 * @var bool
+	 */
+	private $rendering_contact_email = false;
+
+	/**
+	 * Flag indicating whether Contact Information email field has been rendered.
+	 *
+	 * @var bool
+	 */
+	private $contact_email_rendered = false;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
+		// Contact Information at top of Classic Checkout
+		add_action( 'woocommerce_checkout_before_customer_details', array( $this, 'render_contact_information' ), 5 );
+		add_action( 'woocommerce_before_checkout_billing_form', array( $this, 'maybe_render_contact_information_fallback' ), 5 );
+		add_filter( 'woocommerce_form_field', array( $this, 'filter_billing_email_field' ), 10, 4 );
+
 		// Classic Checkout Hooks
 		add_action( 'woocommerce_before_checkout_billing_form', array( $this, 'render_billing_selector' ) );
 		add_action( 'woocommerce_before_checkout_shipping_form', array( $this, 'render_shipping_selector' ) );
@@ -36,15 +55,136 @@ class SAB_Checkout {
 	}
 
 	/**
+	 * Render Contact Information email field at top of Classic Checkout.
+	 *
+	 * @param WC_Checkout|null $checkout Checkout instance.
+	 */
+	public function render_contact_information( $checkout = null ) {
+		if ( ! empty( $this->contact_email_rendered ) ) {
+			return;
+		}
+
+		if ( ! ( $checkout instanceof WC_Checkout ) && function_exists( 'WC' ) && WC()->checkout() ) {
+			$checkout = WC()->checkout();
+		}
+		if ( ! $checkout ) {
+			return;
+		}
+
+		// Only apply to Classic Checkout (do not affect Block Checkout)
+		if ( function_exists( 'has_block' ) && has_block( 'woocommerce/checkout' ) ) {
+			return;
+		}
+
+		$fields = $checkout->get_checkout_fields( 'billing' );
+		if ( ! isset( $fields['billing_email'] ) ) {
+			return;
+		}
+
+		$email_field             = $fields['billing_email'];
+		$email_field['required'] = true;
+
+		$email_value = $checkout->get_value( 'billing_email' );
+		if ( empty( $email_value ) && is_user_logged_in() ) {
+			$current_user_id = get_current_user_id();
+			if ( 'yes' === get_option( 'sab_enable_billing', 'yes' ) ) {
+				$default_billing = SAB_Database::get_default_address( $current_user_id, 'billing' );
+				if ( ! $default_billing ) {
+					$billing_addresses = SAB_Database::get_addresses_sorted( $current_user_id, 'billing' );
+					if ( ! empty( $billing_addresses ) ) {
+						$default_billing = $billing_addresses[0];
+					}
+				}
+				if ( $default_billing && ! empty( $default_billing->email ) ) {
+					$email_value = $default_billing->email;
+				}
+			}
+
+			if ( empty( $email_value ) ) {
+				$email_value = get_user_meta( $current_user_id, 'billing_email', true );
+				if ( empty( $email_value ) ) {
+					$current_user = wp_get_current_user();
+					$email_value  = $current_user->user_email ?? '';
+				}
+			}
+		}
+
+		$this->rendering_contact_email = true;
+		?>
+		<div class="sab-contact-information-wrapper" id="sab_contact_information_wrapper">
+			<div class="sab-contact-information-header">
+				<h3 class="sab-contact-info-title"><?php esc_html_e( 'Contact Information', 'smart-address-book' ); ?></h3>
+			</div>
+			<div class="sab-contact-email-container">
+				<?php woocommerce_form_field( 'billing_email', $email_field, $email_value ); ?>
+			</div>
+		</div>
+		<?php
+		$this->rendering_contact_email = false;
+		$this->contact_email_rendered  = true;
+	}
+
+	/**
+	 * Fallback render for Contact Information if theme did not fire woocommerce_checkout_before_customer_details.
+	 *
+	 * @param WC_Checkout|null $checkout Checkout instance.
+	 */
+	public function maybe_render_contact_information_fallback( $checkout = null ) {
+		if ( empty( $this->contact_email_rendered ) ) {
+			$this->render_contact_information( $checkout );
+		}
+	}
+
+	/**
+	 * Suppress duplicate billing email output inside standard billing fields wrapper.
+	 *
+	 * @param string $field_html Field HTML.
+	 * @param string $key        Field key.
+	 * @param array  $args       Field arguments.
+	 * @param mixed  $value      Field value.
+	 * @return string Filtered field HTML.
+	 */
+	public function filter_billing_email_field( $field_html, $key, $args, $value ) {
+		if ( 'billing_email' === $key ) {
+			if ( ! empty( $this->rendering_contact_email ) ) {
+				return $field_html;
+			}
+			if ( ! empty( $this->contact_email_rendered ) ) {
+				return '';
+			}
+		}
+		return $field_html;
+	}
+
+	/**
 	 * Save selected Smart Address Book IDs into order meta on order creation.
 	 *
 	 * @param \WC_Order $order Order instance.
 	 * @param array     $data Checkout data.
 	 */
 	public function save_order_address_meta( $order, $data ) {
+		// Ensure updated billing email is saved to order and customer profile
+		$email = '';
+		if ( ! empty( $_POST['billing_email'] ) ) {
+			$email = sanitize_email( wp_unslash( $_POST['billing_email'] ) );
+		} elseif ( ! empty( $data['billing_email'] ) ) {
+			$email = sanitize_email( $data['billing_email'] );
+		}
+
+		if ( ! empty( $email ) && is_email( $email ) ) {
+			$order->set_billing_email( $email );
+		}
+
 		$customer_id = (int) $order->get_customer_id();
 		if ( ! $customer_id ) {
 			$customer_id = get_current_user_id();
+		}
+
+		if ( $customer_id > 0 && ! empty( $email ) && is_email( $email ) ) {
+			update_user_meta( $customer_id, 'billing_email', $email );
+			if ( function_exists( 'WC' ) && WC()->customer ) {
+				WC()->customer->set_billing_email( $email );
+			}
 		}
 
 		if ( $customer_id <= 0 ) {
@@ -79,17 +219,19 @@ class SAB_Checkout {
 			return;
 		}
 
-		$user_id   = get_current_user_id();
-		$addresses = SAB_Database::get_addresses_sorted( $user_id, 'billing' );
+		$user_id              = get_current_user_id();
+		$addresses            = SAB_Database::get_addresses_sorted( $user_id, 'billing' );
+		$enable_checkout_save = 'yes' === get_option( 'sab_enable_checkout_save', 'yes' );
+		$can_add_address      = SAB_Database::can_add_address( $user_id, 'billing' );
 
-		if ( empty( $addresses ) ) {
+		if ( empty( $addresses ) && ( ! $enable_checkout_save || ! $can_add_address ) ) {
 			return;
 		}
 
 		$address_type = 'billing';
 		$type         = $address_type;
 		$default      = SAB_Database::get_default_address( $user_id, 'billing' );
-		$default_id = $default ? (int) $default->id : 0;
+		$default_id   = $default ? (int) $default->id : ( ! empty( $addresses ) ? (int) $addresses[0]->id : 0 );
 
 		$template_path = SAB_PLUGIN_DIR . 'public/views/checkout-selector.php';
 		include $template_path;
@@ -103,17 +245,19 @@ class SAB_Checkout {
 			return;
 		}
 
-		$user_id   = get_current_user_id();
-		$addresses = SAB_Database::get_addresses_sorted( $user_id, 'shipping' );
+		$user_id              = get_current_user_id();
+		$addresses            = SAB_Database::get_addresses_sorted( $user_id, 'shipping' );
+		$enable_checkout_save = 'yes' === get_option( 'sab_enable_checkout_save', 'yes' );
+		$can_add_address      = SAB_Database::can_add_address( $user_id, 'shipping' );
 
-		if ( empty( $addresses ) ) {
+		if ( empty( $addresses ) && ( ! $enable_checkout_save || ! $can_add_address ) ) {
 			return;
 		}
 
 		$address_type = 'shipping';
 		$type         = $address_type;
 		$default      = SAB_Database::get_default_address( $user_id, 'shipping' );
-		$default_id = $default ? (int) $default->id : 0;
+		$default_id   = $default ? (int) $default->id : ( ! empty( $addresses ) ? (int) $addresses[0]->id : 0 );
 
 		$template_path = SAB_PLUGIN_DIR . 'public/views/checkout-selector.php';
 		include $template_path;
@@ -309,8 +453,18 @@ class SAB_Checkout {
 
 		$rendered = true;
 
-		$countries       = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array();
-		$default_country = ( function_exists( 'WC' ) && WC()->customer ) ? ( WC()->customer->get_shipping_country() ?: 'US' ) : 'US';
+		$billing_countries  = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array();
+		$shipping_countries = ( function_exists( 'WC' ) && WC()->countries ) ? ( WC()->countries->get_shipping_countries() ?: $billing_countries ) : array();
+
+		$base_country             = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_base_country() : 'US';
+		$default_shipping_country = ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_shipping_country() ) ? WC()->customer->get_shipping_country() : $base_country;
+		if ( ! array_key_exists( $default_shipping_country, $shipping_countries ) && ! empty( $shipping_countries ) ) {
+			$shipping_country_keys    = array_keys( $shipping_countries );
+			$default_shipping_country = $shipping_country_keys[0];
+		}
+
+		$countries       = $shipping_countries;
+		$default_country = $default_shipping_country;
 		$states          = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_states( $default_country ) : array();
 
 		$validate_required = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );

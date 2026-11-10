@@ -150,6 +150,41 @@
 		}
 
 		/**
+		 * Helper: Build State / County field HTML for Block Checkout.
+		 */
+		function buildBlocksStateFieldHtml(type, countryCode, selectedState) {
+			var states = settings.states || {};
+			var stateVal = selectedState || '';
+			var html = '<label>State / County</label>';
+
+			if (states[countryCode] && Object.keys(states[countryCode]).length > 0) {
+				var countryStates = states[countryCode];
+				html += '<select name="state" class="sab-select sab-blocks-state-select" style="width:100%; padding:8px 10px; border:1px solid #757575; border-radius:4px; font-size:14px; background:#fff;">';
+				var placeholder = (settings.i18n && settings.i18n.select_state_text) ? settings.i18n.select_state_text : 'Select an option&hellip;';
+				html += '<option value="">' + placeholder + '</option>';
+				$.each(countryStates, function(code, name) {
+					var isMatch = (code === stateVal || name === stateVal || (stateVal && code.toLowerCase() === stateVal.toLowerCase()) || (stateVal && name.toLowerCase() === stateVal.toLowerCase()));
+					html += '<option value="' + code + '"' + (isMatch ? ' selected="selected"' : '') + '>' + name + '</option>';
+				});
+				html += '</select>';
+			} else {
+				html += '<input type="text" name="state" class="sab-input" value="' + stateVal + '" style="width:100%; padding:8px 10px; border:1px solid #757575; border-radius:4px; font-size:14px; background:#fff;" />';
+			}
+			return html;
+		}
+
+		/**
+		 * Helper: Update State field DOM inside Block Checkout form.
+		 */
+		function renderBlocksStateField(type, countryCode, selectedState) {
+			var $wrapper = $('#sab_blocks_' + type + '_state_wrapper');
+			if (!$wrapper.length) {
+				return;
+			}
+			$wrapper.html(buildBlocksStateFieldHtml(type, countryCode, selectedState));
+		}
+
+		/**
 		 * Build the HTML for the Blocks Address Selector.
 		 */
 		function buildSelectorHtml(type, addresses, defaultId) {
@@ -186,16 +221,33 @@
 				selectedAddr = addresses[0].wc_address || addresses[0].raw;
 			}
 
-			var countries = settings.countries || {};
+			var countryList = (type === 'shipping')
+				? (settings.shipping_countries || settings.countries || {})
+				: (settings.billing_countries || settings.countries || {});
+
+			var selCountry = selectedAddr ? (selectedAddr.country || '') : '';
+			if (!selCountry) {
+				selCountry = (type === 'shipping')
+					? (settings.default_shipping_country || 'US')
+					: (settings.default_billing_country || 'US');
+			}
+			var countryKeys = Object.keys(countryList);
+			if (countryKeys.length > 0 && (!selCountry || !countryList[selCountry])) {
+				selCountry = countryKeys[0];
+			}
+
+			var hasAddresses = addresses && addresses.length > 0;
+			var labelStyle = hasAddresses ? 'font-weight:600; margin:0; font-size:14px;' : 'font-weight:600; margin:0; font-size:14px; display:none;';
+			var selectControlStyle = hasAddresses ? 'margin-bottom:12px;' : 'margin-bottom:12px; display:none;';
 
 			var html = '<div class="sab-blocks-selector-wrapper sab-blocks-' + type + '-selector" data-type="' + type + '">';
 			html += '  <div class="sab-selector-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">';
-			html += '    <label for="' + selectId + '" style="font-weight:600; margin:0; font-size:14px;">' + label + '</label>';
-			if (enableCheckoutSave) {
+			html += '    <label for="' + selectId + '" style="' + labelStyle + '">' + label + '</label>';
+			if (enableCheckoutSave && canAddForType) {
 				html += '    <button type="button" class="button sab-add-new-address-btn" data-type="' + type + '" style="font-size:12px; padding:4px 10px; cursor:pointer;">' + btnLabel + '</button>';
 			}
 			html += '  </div>';
-			html += '  <div class="sab-selector-control" style="margin-bottom:12px;">';
+			html += '  <div class="sab-selector-control" style="' + selectControlStyle + '">';
 			html += '    <select id="' + selectId + '" class="sab-blocks-address-dropdown" data-type="' + type + '" style="width:100%; padding:8px 10px; border:1px solid #757575; border-radius:4px; font-size:14px; background:#fff;">';
 
 			// Addresses in order: Default first, Recently Used next, Remaining after
@@ -245,9 +297,8 @@
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col sab-blocks-form-full">';
 			html += '        <label>Country / Region' + reqMark + '</label>';
-			html += '        <select name="country" class="sab-select sab-blocks-country-select" data-type="' + type + '">';
-			var selCountry = selectedAddr ? (selectedAddr.country || 'US') : 'US';
-			$.each(countries, function(code, cname) {
+			html += '        <select name="country" class="sab-select sab-blocks-country-select" data-type="' + type + '" style="width:100%; padding:8px 10px; border:1px solid #757575; border-radius:4px; font-size:14px; background:#fff;">';
+			$.each(countryList, function(code, cname) {
 				html += '<option value="' + code + '"' + (code === selCountry ? ' selected="selected"' : '') + '>' + cname + '</option>';
 			});
 			html += '        </select>';
@@ -265,8 +316,7 @@
 			html += '        <input type="text" name="city" class="sab-input" value="' + (selectedAddr ? (selectedAddr.city || '') : '') + '" />';
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col" id="sab_blocks_' + type + '_state_wrapper">';
-			html += '        <label>State / County</label>';
-			html += '        <input type="text" name="state" class="sab-input" value="' + (selectedAddr ? (selectedAddr.state || '') : '') + '" />';
+			html +=          buildBlocksStateFieldHtml(type, selCountry, selectedAddr ? (selectedAddr.state || '') : '');
 			html += '      </div>';
 			html += '      <div class="sab-blocks-form-col">';
 			html += '        <label>Postcode / ZIP' + reqMark + '</label>';
@@ -357,7 +407,7 @@
 			}
 
 			// 1. Mount Shipping Selector
-			if (settings.enable_shipping && shippingAddresses.length > 0) {
+			if (settings.enable_shipping && (shippingAddresses.length > 0 || settings.can_add_shipping)) {
 				var $shippingBlock = $blockCheckout.find('.wp-block-woocommerce-checkout-shipping-address-block').first();
 				if (!$shippingBlock.length) {
 					$shippingBlock = $blockCheckout.find('.wc-block-checkout__shipping-fields').first().closest('.wc-block-components-checkout-step, .wp-block-woocommerce-checkout-shipping-address-block');
@@ -412,7 +462,7 @@
 			}
 
 			// 2. Mount Billing Selector
-			if (settings.enable_billing && billingAddresses.length > 0) {
+			if (settings.enable_billing && (billingAddresses.length > 0 || settings.can_add_billing)) {
 				var $billingBlock = $blockCheckout.find('.wp-block-woocommerce-checkout-billing-address-block').first();
 				if (!$billingBlock.length) {
 					$billingBlock = $blockCheckout.find('.wc-block-checkout__billing-fields').first().closest('.wc-block-components-checkout-step, .wp-block-woocommerce-checkout-billing-address-block');
@@ -544,10 +594,10 @@
 				$editForm.find('[name="last_name"]').val(addressData.last_name || '');
 				$editForm.find('[name="company"]').val(addressData.company || '');
 				$editForm.find('[name="country"]').val(addressData.country || 'US');
+				renderBlocksStateField(type, addressData.country || 'US', addressData.state || '');
 				$editForm.find('[name="address_1"]').val(addressData.address_1 || '');
 				$editForm.find('[name="address_2"]').val(addressData.address_2 || '');
 				$editForm.find('[name="city"]').val(addressData.city || '');
-				$editForm.find('[name="state"]').val(addressData.state || '');
 				$editForm.find('[name="postal_code"]').val(addressData.postal_code || (addressData.postcode || ''));
 				$editForm.find('[name="phone"]').val(addressData.phone || '');
 				$editForm.find('[name="email"]').val(addressData.email || '');
@@ -707,6 +757,15 @@
 		});
 
 		/**
+		 * Dynamic Country-State update when country is changed in Checkout Blocks inline form.
+		 */
+		$(document).on('change', '.sab-blocks-country-select', function() {
+			var countryCode = $(this).val();
+			var type = $(this).data('type') || 'shipping';
+			renderBlocksStateField(type, countryCode, '');
+		});
+
+		/**
 		 * Custom event listener: When a new address is added via modal, update blocks selectors
 		 */
 		$(document).on('sab_address_created', function(e, data) {
@@ -718,6 +777,10 @@
 			var newId = data.address_id;
 			var raw = data.address;
 			var label = data.label;
+
+			if (raw && !raw.postcode && raw.postal_code) {
+				raw.postcode = raw.postal_code;
+			}
 
 			var newEntry = {
 				id: newId,
@@ -739,22 +802,44 @@
 					var $newOpt = $('<option></option>')
 						.val(newId)
 						.text(label)
-						.attr('data-address', JSON.stringify(raw));
+						.attr('data-address', JSON.stringify(raw))
+						.data('address', raw);
 
 					var $firstOpt = $dropdown.find('option:first');
 					if ($firstOpt.length) {
-						$firstOpt.after($newOpt);
+						$firstOpt.before($newOpt);
 					} else {
 						$dropdown.prepend($newOpt);
 					}
+				} else {
+					$existing
+						.text(label)
+						.attr('data-address', JSON.stringify(raw))
+						.data('address', raw);
 				}
-				$dropdown.val(newId).trigger('change');
+				$dropdown.closest('.sab-selector-control').show();
+				$('.sab-blocks-' + type + '-selector').find('label[for="' + $dropdown.attr('id') + '"]').show();
+				$dropdown.val(newId);
+
+				// Update summary box
+				$('#sab_blocks_' + type + '_summary_text').html(formatAddressSummary(raw, type));
+				$('#sab_blocks_' + type + '_summary_box').show();
+
+				// Dispatch to blocks store
+				dispatchAddressToStore(type, raw);
+				updateBlockExtensionData(type + '_address_id', newId);
 			} else {
 				// If selector was not rendered previously, mount now
 				mountBlocksSelectors();
 				var $newDropdown = $('#sab_blocks_' + type + '_address_select');
 				if ($newDropdown.length) {
-					$newDropdown.val(newId).trigger('change');
+					$newDropdown.closest('.sab-selector-control').show();
+					$('.sab-blocks-' + type + '-selector').find('label[for="' + $newDropdown.attr('id') + '"]').show();
+					$newDropdown.val(newId);
+					$('#sab_blocks_' + type + '_summary_text').html(formatAddressSummary(raw, type));
+					$('#sab_blocks_' + type + '_summary_box').show();
+					dispatchAddressToStore(type, raw);
+					updateBlockExtensionData(type + '_address_id', newId);
 				}
 			}
 

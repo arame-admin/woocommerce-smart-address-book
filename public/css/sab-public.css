@@ -104,7 +104,6 @@
 .sab-header-actions .sab-add-btn,
 .sab-header-actions a.sab-add-btn {
 	text-decoration: none !important;
-	transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .sab-header-actions .sab-add-btn:visited,
@@ -115,22 +114,6 @@
 .sab-header-actions .sab-add-btn:hover:not(.sab-disabled):not(:disabled),
 .sab-header-actions a.sab-add-btn:hover:not(.sab-disabled) {
 	text-decoration: none !important;
-	background-color: #e8f4f6 !important;
-	color: var(--sab-primary-hover, #005a6a) !important;
-}
-
-.sab-header-actions .sab-add-btn:focus,
-.sab-header-actions a.sab-add-btn:focus {
-	text-decoration: none !important;
-	outline: none;
-	box-shadow: 0 0 0 2px rgba(0, 113, 133, 0.25);
-}
-
-.sab-header-actions .sab-add-btn:active:not(.sab-disabled):not(:disabled),
-.sab-header-actions a.sab-add-btn:active:not(.sab-disabled) {
-	text-decoration: none !important;
-	background-color: #d8edf1 !important;
-	color: var(--sab-primary-hover, #005a6a) !important;
 }
 
 .sab-header-actions .sab-add-btn.sab-disabled,
@@ -356,28 +339,29 @@
 	align-items: center;
 	justify-content: center;
 	border-radius: 4px;
-	background: #fff;
-	border: 1px solid var(--sab-border);
-	color: #111;
 	cursor: pointer;
-	transition: background 0.15s, border-color 0.15s;
-	text-decoration: none;
+	text-decoration: none !important;
 	box-sizing: border-box;
 	line-height: 1.3;
+	vertical-align: middle;
+	text-align: center;
+	white-space: nowrap;
 }
 
-.sab-card-actions .button:hover {
-	background: #f7fafa;
-	border-color: #a6b0b0;
+.sab-card-actions a.button,
+.sab-card-actions .sab-action-edit {
+	text-decoration: none !important;
 }
 
-.sab-card-actions .sab-action-delete {
-	color: #c40000;
-}
-
-.sab-card-actions .sab-action-delete:hover {
-	background: #fdf2f2;
-	border-color: #f5c2c2;
+.sab-card-actions .sab-action-edit:hover,
+.sab-card-actions a.button:hover,
+.sab-card-actions .sab-action-edit:focus,
+.sab-card-actions a.button:focus,
+.sab-card-actions .sab-action-edit:active,
+.sab-card-actions a.button:active,
+.sab-card-actions .sab-action-edit:visited,
+.sab-card-actions a.button:visited {
+	text-decoration: none !important;
 }
 
 /* Empty State */
@@ -486,6 +470,51 @@
 	margin-left: 0;
 }
 
+/* Contact Information Section in Classic Checkout */
+.sab-contact-information-wrapper {
+	margin-top: 10px;
+	margin-bottom: 24px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid var(--sab-border, #d5d9d9);
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.sab-contact-information-wrapper .sab-contact-info-title {
+	margin: 0 0 12px 0;
+	font-size: 18px;
+	font-weight: 600;
+	color: inherit;
+}
+
+.sab-contact-email-container {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.sab-contact-email-container .form-row {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.sab-contact-email-container .form-row label {
+	display: block;
+	margin-bottom: 6px;
+	font-weight: 500;
+}
+
+.sab-contact-email-container .form-row .input-text {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+#sab_contact_information_wrapper #billing_email_field {
+	display: block !important;
+}
+
 /* Checkout Selector */
 .sab-checkout-selector-container,
 .sab-blocks-selector-wrapper {
@@ -581,26 +610,16 @@
 }
 
 .sab-summary-edit-btn {
-	background: #fff !important;
-	border: 1px solid #757575 !important;
-	color: #2c3338 !important;
 	padding: 5px 14px !important;
 	border-radius: 4px !important;
 	font-weight: 600 !important;
 	font-size: 13px !important;
 	cursor: pointer !important;
-	transition: all 0.2s ease !important;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	min-height: 32px;
 	box-sizing: border-box;
-}
-
-.sab-summary-edit-btn:hover {
-	background: #f0f0f1 !important;
-	border-color: #1d2327 !important;
-	color: #000 !important;
 }
 
 /* Inline Form Actions at Bottom of Form */
@@ -630,21 +649,12 @@
 
 .sab-inline-cancel-btn,
 .sab-blocks-cancel-btn {
-	background: #f7f7f7 !important;
-	border: 1px solid #c3c4c7 !important;
-	color: #333 !important;
 	padding: 8px 18px !important;
 	font-size: 14px !important;
 	border-radius: 4px !important;
 	cursor: pointer !important;
 	min-height: 38px;
 	box-sizing: border-box;
-}
-
-.sab-inline-cancel-btn:hover,
-.sab-blocks-cancel-btn:hover {
-	background: #ececec !important;
-	color: #111 !important;
 }
 
 .sab-blocks-inline-edit-form {
@@ -731,19 +741,10 @@
 }
 
 .sab-add-new-address-btn {
-	background: #fff !important;
-	border: 1px solid var(--sab-primary) !important;
-	color: var(--sab-primary) !important;
 	border-radius: 4px !important;
 	font-weight: 600 !important;
 	cursor: pointer !important;
-	transition: all 0.2s ease !important;
 	box-sizing: border-box;
-}
-
-.sab-add-new-address-btn:hover {
-	background: var(--sab-primary) !important;
-	color: #fff !important;
 }
 
 /* Modal Overlay & Dialog - Fixed to viewport without horizontal scrollbar */
@@ -869,15 +870,6 @@ body.sab-modal-open {
 	box-sizing: border-box;
 }
 
-.sab-modal-save-btn {
-	background: var(--sab-primary) !important;
-	color: #fff !important;
-	border-color: var(--sab-primary) !important;
-}
-
-.sab-modal-save-btn:hover {
-	background: var(--sab-primary-hover) !important;
-}
 
 /* Modal Form Grid */
 .sab-modal-form-grid {
@@ -1128,29 +1120,6 @@ body.sab-modal-open {
 	transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-#sab-csv-import-modal .sab-modal-footer .sab-import-cancel-btn {
-	background: #fff;
-	border: 1px solid var(--sab-border);
-	color: #374151;
-}
-
-#sab-csv-import-modal .sab-modal-footer .sab-import-cancel-btn:hover {
-	background: #f3f4f6;
-	border-color: #9ca3af;
-	color: #111827;
-}
-
-#sab-csv-import-modal .sab-modal-footer .sab-import-action-btn {
-	background: var(--sab-primary) !important;
-	border: 1px solid var(--sab-primary) !important;
-	color: #fff !important;
-}
-
-#sab-csv-import-modal .sab-modal-footer .sab-import-action-btn:hover:not(:disabled) {
-	background: var(--sab-primary-hover) !important;
-	border-color: var(--sab-primary-hover) !important;
-	color: #fff !important;
-}
 
 #sab-csv-import-modal .sab-modal-footer .sab-import-action-btn:disabled,
 #sab-csv-import-modal .sab-modal-footer .sab-import-action-btn[disabled] {

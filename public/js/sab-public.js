@@ -27,6 +27,16 @@
 		}
 
 		/**
+		 * 0. Edit Address Navigation Handler
+		 */
+		$(document).on('click', '.sab-action-edit', function(e) {
+			var url = $(this).data('href') || $(this).attr('href');
+			if (url) {
+				window.location.href = url;
+			}
+		});
+
+		/**
 		 * 1. Delete Address Handler
 		 */
 		$(document).on('click', '.sab-action-delete', function(e) {

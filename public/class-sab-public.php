@@ -171,12 +171,23 @@ class SAB_Public {
 			$validate_req      = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
 			$checkout_save     = 'yes' === get_option( 'sab_enable_checkout_save', 'yes' );
 
+			$allowed_billing_countries  = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array();
+			$allowed_shipping_countries = ( function_exists( 'WC' ) && WC()->countries ) ? ( WC()->countries->get_shipping_countries() ?: $allowed_billing_countries ) : array();
+
+			$base_country             = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_base_country() : 'US';
+			$default_billing_country  = ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : $base_country;
+			$default_shipping_country = ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_shipping_country() ) ? WC()->customer->get_shipping_country() : $base_country;
+
 			$checkout_data = array(
 				'is_logged_in'             => true,
 				'ajax_url'                 => admin_url( 'admin-ajax.php' ),
 				'nonce'                    => wp_create_nonce( 'sab_checkout_nonce' ),
 				'states'                   => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_states() : array(),
-				'countries'                => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array(),
+				'countries'                => $allowed_billing_countries,
+				'billing_countries'        => $allowed_billing_countries,
+				'shipping_countries'       => $allowed_shipping_countries,
+				'default_billing_country'  => $default_billing_country,
+				'default_shipping_country' => $default_shipping_country,
 				'billing_addresses'        => $format_addr_fn( $billing_addresses, $default_billing ? $default_billing->id : 0 ),
 				'shipping_addresses'       => $format_addr_fn( $shipping_addresses, $default_shipping ? $default_shipping->id : 0 ),
 				'default_billing_id'       => $default_billing ? (int) $default_billing->id : 0,
@@ -207,9 +218,10 @@ class SAB_Public {
 					'error'             => __( 'Could not load address.', 'smart-address-book' ),
 					'saving'            => __( 'Saving...', 'smart-address-book' ),
 					'select_state_text' => __( 'Select an option&hellip;', 'woocommerce' ),
-					'edit'              => __( 'Edit', 'smart-address-book' ),
-					'save_changes'      => __( 'Save Changes', 'smart-address-book' ),
-					'cancel'            => __( 'Cancel', 'smart-address-book' ),
+					'edit'                => __( 'Edit', 'smart-address-book' ),
+					'save_changes'        => __( 'Save Changes', 'smart-address-book' ),
+					'cancel'              => __( 'Cancel', 'smart-address-book' ),
+					'contact_information' => __( 'Contact Information', 'smart-address-book' ),
 				),
 			);
 

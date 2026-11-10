@@ -32,7 +32,9 @@ $phone        = sanitize_text_field( $_POST['phone'] ?? ( $is_edit ? $address->p
 $email        = sanitize_email( $_POST['email'] ?? ( $is_edit ? $address->email : '' ) );
 $is_default   = isset( $_POST['sab_save_address'] ) ? ( ! empty( $_POST['is_default'] ) ? 1 : 0 ) : ( $is_edit && (int) $address->is_default === 1 ? 1 : 0 );
 
-$countries = WC()->countries->get_allowed_countries();
+$countries = ( 'shipping' === $address_type && function_exists( 'WC' ) && WC()->countries )
+	? ( WC()->countries->get_shipping_countries() ?: WC()->countries->get_allowed_countries() )
+	: ( ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array() );
 $states    = WC()->countries->get_states( $country );
 
 $validate_required = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );

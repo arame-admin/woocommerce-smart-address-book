@@ -118,9 +118,9 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 						</div>
 
 						<div class="sab-card-actions">
-							<a href="<?php echo esc_url( $edit_url ); ?>" class="button button-small sab-action-edit">
+							<button type="button" class="button button-small sab-action-edit" data-href="<?php echo esc_url( $edit_url ); ?>" onclick="window.location.href='<?php echo esc_js( esc_url( $edit_url ) ); ?>'">
 								<?php esc_html_e( 'Edit', 'smart-address-book' ); ?>
-							</a>
+							</button>
 							<button type="button" class="button button-small sab-action-delete" data-id="<?php echo esc_attr( $address->id ); ?>">
 								<?php esc_html_e( 'Delete', 'smart-address-book' ); ?>
 							</button>
@@ -194,9 +194,9 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 						</div>
 
 						<div class="sab-card-actions">
-							<a href="<?php echo esc_url( $edit_url ); ?>" class="button button-small sab-action-edit">
+							<button type="button" class="button button-small sab-action-edit" data-href="<?php echo esc_url( $edit_url ); ?>" onclick="window.location.href='<?php echo esc_js( esc_url( $edit_url ) ); ?>'">
 								<?php esc_html_e( 'Edit', 'smart-address-book' ); ?>
-							</a>
+							</button>
 							<button type="button" class="button button-small sab-action-delete" data-id="<?php echo esc_attr( $address->id ); ?>">
 								<?php esc_html_e( 'Delete', 'smart-address-book' ); ?>
 							</button>

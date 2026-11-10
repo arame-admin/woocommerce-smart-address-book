@@ -172,28 +172,39 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 		/* translators: %d: maximum allowed shipping addresses */
 		$limit_message_shipping = sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses.', 'smart-address-book' ), $max_allowed );
 
-		return array(
-			'is_logged_in'             => true,
-			'billing_addresses'        => $format_address_list( $billing_addresses, $default_billing ? $default_billing->id : 0 ),
-			'shipping_addresses'       => $format_address_list( $shipping_addresses, $default_shipping ? $default_shipping->id : 0 ),
-			'default_billing_id'       => $default_billing ? (int) $default_billing->id : 0,
-			'default_shipping_id'      => $default_shipping ? (int) $default_shipping->id : 0,
-			'enable_billing'           => 'yes' === get_option( 'sab_enable_billing', 'yes' ),
-			'enable_shipping'          => 'yes' === get_option( 'sab_enable_shipping', 'yes' ),
-			'max_addresses'            => $max_allowed,
-			'can_add_address'          => $can_add,
-			'can_add_billing'          => $can_add_billing,
-			'can_add_shipping'         => $can_add_shipping,
-			'validate_required_fields' => $validate_req,
-			'enable_checkout_save'     => $checkout_save,
-			/* translators: %d: maximum allowed addresses */
-			'limit_message'            => sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ),
-			'limit_message_billing'    => $limit_message_billing,
-			'limit_message_shipping'   => $limit_message_shipping,
-			'ajax_url'                 => admin_url( 'admin-ajax.php' ),
-			'nonce'                    => wp_create_nonce( 'sab_checkout_nonce' ),
-			'countries'           => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array(),
-			'states'              => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_states() : array(),
+			$allowed_billing_countries  = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array();
+			$allowed_shipping_countries = ( function_exists( 'WC' ) && WC()->countries ) ? ( WC()->countries->get_shipping_countries() ?: $allowed_billing_countries ) : array();
+
+			$base_country             = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_base_country() : 'US';
+			$default_billing_country  = ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_billing_country() ) ? WC()->customer->get_billing_country() : $base_country;
+			$default_shipping_country = ( function_exists( 'WC' ) && WC()->customer && WC()->customer->get_shipping_country() ) ? WC()->customer->get_shipping_country() : $base_country;
+
+			return array(
+				'is_logged_in'             => true,
+				'billing_addresses'        => $format_address_list( $billing_addresses, $default_billing ? $default_billing->id : 0 ),
+				'shipping_addresses'       => $format_address_list( $shipping_addresses, $default_shipping ? $default_shipping->id : 0 ),
+				'default_billing_id'       => $default_billing ? (int) $default_billing->id : 0,
+				'default_shipping_id'      => $default_shipping ? (int) $default_shipping->id : 0,
+				'enable_billing'           => 'yes' === get_option( 'sab_enable_billing', 'yes' ),
+				'enable_shipping'          => 'yes' === get_option( 'sab_enable_shipping', 'yes' ),
+				'max_addresses'            => $max_allowed,
+				'can_add_address'          => $can_add,
+				'can_add_billing'          => $can_add_billing,
+				'can_add_shipping'         => $can_add_shipping,
+				'validate_required_fields' => $validate_req,
+				'enable_checkout_save'     => $checkout_save,
+				/* translators: %d: maximum allowed addresses */
+				'limit_message'            => sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ),
+				'limit_message_billing'    => $limit_message_billing,
+				'limit_message_shipping'   => $limit_message_shipping,
+				'ajax_url'                 => admin_url( 'admin-ajax.php' ),
+				'nonce'                    => wp_create_nonce( 'sab_checkout_nonce' ),
+				'countries'                => $allowed_billing_countries,
+				'billing_countries'        => $allowed_billing_countries,
+				'shipping_countries'       => $allowed_shipping_countries,
+				'default_billing_country'  => $default_billing_country,
+				'default_shipping_country' => $default_shipping_country,
+				'states'                   => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_states() : array(),
 			'i18n'                => array(
 				'select_billing'   => __( 'Select a saved billing address:', 'smart-address-book' ),
 				'select_shipping'  => __( 'Select a saved shipping address:', 'smart-address-book' ),

@@ -37,6 +37,15 @@
 			};
 
 			$.each(fields, function(key, val) {
+				if (key === 'email') {
+					if (prefix === 'billing') {
+						var $billingEmail = $('#billing_email');
+						if ($billingEmail.length && val && $.trim(val)) {
+							$billingEmail.val(val);
+						}
+					}
+					return;
+				}
 				var $input = $('#' + prefix + '_' + key);
 				if ($input.length) {
 					$input.val(val);
@@ -76,35 +85,125 @@
 		}
 
 		/**
+		 * Helper: Dynamically update country options in modal based on address type.
+		 */
+		function updateModalCountries(addressType, selectedCountry) {
+			var $countrySelect = $('#sab_modal_country');
+			if (!$countrySelect.length) {
+				return;
+			}
+
+			var countryList = {};
+			if (typeof sab_checkout_params !== 'undefined') {
+				if (addressType === 'shipping' && sab_checkout_params.shipping_countries) {
+					countryList = sab_checkout_params.shipping_countries;
+				} else if (addressType === 'billing' && sab_checkout_params.billing_countries) {
+					countryList = sab_checkout_params.billing_countries;
+				} else if (sab_checkout_params.countries) {
+					countryList = sab_checkout_params.countries;
+				}
+			}
+
+			var currentCountry = selectedCountry || $countrySelect.val();
+			if (!currentCountry) {
+				if (addressType === 'shipping' && typeof sab_checkout_params !== 'undefined' && sab_checkout_params.default_shipping_country) {
+					currentCountry = sab_checkout_params.default_shipping_country;
+				} else if (addressType === 'billing' && typeof sab_checkout_params !== 'undefined' && sab_checkout_params.default_billing_country) {
+					currentCountry = sab_checkout_params.default_billing_country;
+				}
+			}
+
+			var countryKeys = Object.keys(countryList);
+			if (countryKeys.length > 0 && (!currentCountry || !countryList[currentCountry])) {
+				currentCountry = countryKeys[0];
+			}
+
+			// Clean up Select2 / SelectWoo if initialized on country select
+			if ($.fn.select2 && $countrySelect.hasClass('select2-hidden-accessible')) {
+				try {
+					$countrySelect.select2('destroy');
+				} catch (e) {}
+			}
+
+			$countrySelect.empty();
+			$countrySelect.append('<option value="">Select a country / region&hellip;</option>');
+			$.each(countryList, function(code, name) {
+				var $opt = $('<option></option>').val(code).text(name);
+				if (code === currentCountry) {
+					$opt.prop('selected', true);
+				}
+				$countrySelect.append($opt);
+			});
+
+			if (currentCountry) {
+				$countrySelect.val(currentCountry);
+			}
+
+			updateModalStates(currentCountry, '');
+		}
+
+		/**
 		 * Helper: Dynamically update state dropdown or input in modal.
 		 */
 		function updateModalStates(countryCode, selectedState) {
 			var states = (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.states) ? sab_checkout_params.states : {};
 			var $stateContainer = $('#sab_modal_state_field');
+			if (!$stateContainer.length) {
+				return;
+			}
+
+			// Safely clean up Select2 / SelectWoo if present
+			if ($.fn.select2 && $stateContainer.find('.select2-container').length) {
+				try {
+					$stateContainer.find('select').select2('destroy');
+				} catch (e) {}
+				$stateContainer.find('.select2-container').remove();
+			}
+
 			var $currentInput = $('#sab_modal_state');
+			var stateVal = selectedState || '';
 
 			if (states[countryCode] && Object.keys(states[countryCode]).length > 0) {
 				var countryStates = states[countryCode];
-				var $select = $('<select name="state" id="sab_modal_state" class="state_select"></select>');
+				var $select = $('<select name="state" id="sab_modal_state" class="state_select" style="width:100%; box-sizing:border-box;"></select>');
 				var placeholder = (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.i18n && sab_checkout_params.i18n.select_state_text)
 					? sab_checkout_params.i18n.select_state_text
 					: 'Select an option&hellip;';
 				$select.append('<option value="">' + placeholder + '</option>');
+
+				var matchedCode = '';
 				$.each(countryStates, function(code, name) {
+					var isMatch = (code === stateVal || name === stateVal || (stateVal && code.toLowerCase() === stateVal.toLowerCase()) || (stateVal && name.toLowerCase() === stateVal.toLowerCase()));
 					var $opt = $('<option></option>').val(code).text(name);
-					if (code === selectedState) {
+					if (isMatch) {
 						$opt.prop('selected', true);
+						matchedCode = code;
 					}
 					$select.append($opt);
 				});
-				$currentInput.replaceWith($select);
-			} else {
-				var $text = $('<input type="text" class="input-text" name="state" id="sab_modal_state" />');
-				if (selectedState) {
-					$text.val(selectedState);
+
+				if (matchedCode) {
+					$select.val(matchedCode);
 				}
-				$currentInput.replaceWith($text);
+
+				if ($currentInput.length) {
+					$currentInput.replaceWith($select);
+				} else {
+					$stateContainer.append($select);
+				}
+			} else {
+				var $text = $('<input type="text" class="input-text" name="state" id="sab_modal_state" style="width:100%; box-sizing:border-box;" />');
+				if (stateVal) {
+					$text.val(stateVal);
+				}
+				if ($currentInput.length) {
+					$currentInput.replaceWith($text);
+				} else {
+					$stateContainer.append($text);
+				}
 			}
+
+			$(document.body).trigger('country_to_state_changed', [countryCode, $('#sab-checkout-modal-form')]);
 		}
 
 		/**
@@ -489,12 +588,74 @@
 			}
 		}
 
+		/**
+		 * Ensure Contact Information section is located at the top of Classic Checkout
+		 * and prevent any duplicate billing email field in the DOM.
+		 */
+		function ensureContactInformationOrder() {
+			var $contactWrapper = $('#sab_contact_information_wrapper');
+			var $customerDetails = $('#customer_details');
+			var $billingFields = $('.woocommerce-billing-fields');
+
+			// If contact information was rendered via PHP, ensure it sits at the top before customer details
+			if ($contactWrapper.length) {
+				if ($customerDetails.length) {
+					var cNode = $contactWrapper.get(0);
+					var cdNode = $customerDetails.get(0);
+					if (cNode && cdNode && (cNode.compareDocumentPosition(cdNode) & 2)) {
+						$customerDetails.before($contactWrapper);
+					}
+				} else if ($billingFields.length) {
+					var cNode2 = $contactWrapper.get(0);
+					var bNode = $billingFields.first().get(0);
+					if (cNode2 && bNode && (cNode2.compareDocumentPosition(bNode) & 2)) {
+						$billingFields.first().before($contactWrapper);
+					}
+				}
+			} else {
+				// Client-side fallback if hook was not fired by a custom theme template
+				var $emailField = $('#billing_email_field');
+				if ($emailField.length) {
+					var titleText = (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.i18n && sab_checkout_params.i18n.contact_information)
+						? sab_checkout_params.i18n.contact_information
+						: 'Contact Information';
+
+					$contactWrapper = $(
+						'<div class="sab-contact-information-wrapper" id="sab_contact_information_wrapper">' +
+						'  <div class="sab-contact-information-header">' +
+						'    <h3 class="sab-contact-info-title">' + titleText + '</h3>' +
+						'  </div>' +
+						'  <div class="sab-contact-email-container"></div>' +
+						'</div>'
+					);
+
+					if ($customerDetails.length) {
+						$customerDetails.before($contactWrapper);
+					} else if ($billingFields.length) {
+						$billingFields.first().before($contactWrapper);
+					} else {
+						$('form.checkout').prepend($contactWrapper);
+					}
+
+					$contactWrapper.find('.sab-contact-email-container').append($emailField);
+					$emailField.show();
+				}
+			}
+
+			// Clean up any stray duplicate billing_email_field inside billing fields wrapper
+			if ($('#sab_contact_information_wrapper #billing_email_field').length) {
+				$('.woocommerce-billing-fields__field-wrapper #billing_email_field').remove();
+			}
+		}
+
 		initCheckoutAddressSummaries();
+		ensureContactInformationOrder();
 		ensureCheckoutHeadingsOrder();
 
 		$(document.body).on('updated_checkout', function() {
 			$('#sab_shipping_summary_box').slice(1).remove();
 			$('#sab_billing_summary_box').slice(1).remove();
+			ensureContactInformationOrder();
 			ensureCheckoutHeadingsOrder();
 		});
 
@@ -1016,6 +1177,7 @@
 			$('#sab-modal-cancel-btn').text('Cancel');
 
 			// Pre-select type radio & show options
+			$modal.find('input[name="address_type"]').prop('checked', false);
 			$modal.find('input[name="address_type"][value="' + type + '"]').prop('checked', true);
 			if (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.max_addresses > 0) {
 				$modal.find('input[name="address_type"][value="billing"]').prop('disabled', sab_checkout_params.can_add_billing === false);
@@ -1024,9 +1186,8 @@
 			$('#sab_modal_type_row').show();
 			$('#sab_modal_default_row').show();
 
-			// Init states for default country
-			var defaultCountry = $('#sab_modal_country').val() || 'US';
-			updateModalStates(defaultCountry, '');
+			// Update countries & states based on address type (Billing vs Shipping)
+			updateModalCountries(type, '');
 
 			$modal.fadeIn(200);
 			$('body').addClass('sab-modal-open');
@@ -1113,11 +1274,11 @@
 			$('#sab_modal_last_name').val(addressData.last_name || '');
 			$('#sab_modal_company').val(addressData.company || '');
 
-			var country = addressData.country || $('#sab_modal_country').val() || 'US';
-			$('#sab_modal_country').val(country);
+			var country = addressData.country || '';
+			updateModalCountries(type, country);
 
 			var stateVal = addressData.state || '';
-			updateModalStates(country, stateVal);
+			updateModalStates(country || $('#sab_modal_country').val(), stateVal);
 
 			$('#sab_modal_address_1').val(addressData.address_1 || '');
 			$('#sab_modal_address_2').val(addressData.address_2 || '');
@@ -1139,6 +1300,7 @@
 
 		$(document).on('change', '#sab-checkout-modal-form input[name="address_type"]', function() {
 			var selectedType = $(this).val();
+			updateModalCountries(selectedType, '');
 			var $notice = $('.sab-modal-notice');
 			if (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.max_addresses > 0) {
 				var canAddType = (selectedType === 'billing') ? sab_checkout_params.can_add_billing : sab_checkout_params.can_add_shipping;
@@ -1297,53 +1459,107 @@
 						var savedAddress = response.data.address;
 						var label        = response.data.label;
 
+						// Ensure postcode property exists on address object
+						if (savedAddress && !savedAddress.postcode && savedAddress.postal_code) {
+							savedAddress.postcode = savedAddress.postal_code;
+						}
+
 						// Close modal immediately
 						$('#sab-checkout-address-modal').fadeOut(200);
 						$('body').removeClass('sab-modal-open');
 
-						// Update Classic Checkout Dropdown
+						// 1. Update Classic Checkout Dropdown
+						var $selectorContainer = $('.sab-checkout-' + type + '-selector');
 						var $dropdown = $('#sab_' + type + '_address_select');
 						if ($dropdown.length) {
-							var $existingOpt = $dropdown.find('option:value="' + newId + '"');
+							var $existingOpt = $dropdown.find('option[value="' + newId + '"]');
 							if (!$existingOpt.length) {
 								var $newOpt = $('<option></option>')
 									.val(newId)
 									.text(label)
-									.attr('data-address', JSON.stringify(savedAddress));
+									.attr('data-address', JSON.stringify(savedAddress))
+									.data('address', savedAddress);
+
 								var $firstOpt = $dropdown.find('option:first');
 								if ($firstOpt.length) {
-									$firstOpt.after($newOpt);
+									$firstOpt.before($newOpt);
 								} else {
-									$dropdown.prepend($newOpt);
+									$dropdown.append($newOpt);
 								}
+							} else {
+								$existingOpt
+									.text(label)
+									.attr('data-address', JSON.stringify(savedAddress))
+									.data('address', savedAddress);
 							}
 							$dropdown.val(newId);
+							$dropdown.data('current-val', newId);
+							$dropdown.data('prev-val', newId);
+
+							// Ensure dropdown row and label are visible
+							$dropdown.closest('p.form-row').show();
+							$selectorContainer.find('.sab-selector-label').show();
 						}
 
-						// Update hidden address ID input
+						// 2. Update hidden address ID input
 						$('#sab_' + type + '_address_id').val(newId);
 
-						// Populate checkout fields
+						// 3. Populate checkout fields
 						populateCheckoutFields(prefix, savedAddress);
-						$('.sab-checkout-save-' + type).slideUp();
-						$('.sab-checkout-' + type + '-selector .sab-edit-address-btn').show();
 
-						// Trigger custom event for Blocks and other listeners
+						// 4. Update and display address summary box
+						$('#sab_' + type + '_summary_text').html(formatAddressSummary(savedAddress, type));
+						updateSummaryBadge(type, parseInt(response.data.is_default, 10) === 1);
+						if (type === 'shipping') {
+							$('.shipping_address').show();
+						}
+						$('#sab_' + type + '_summary_box').show();
+
+						// 5. Hide native checkout fields and save options
+						var $fieldWrapper = (type === 'billing')
+							? $('.woocommerce-billing-fields__field-wrapper')
+							: $('.woocommerce-shipping-fields__field-wrapper');
+						var $actions = $('#sab_' + type + '_inline_actions');
+						var $saveWrapper = $('.sab-checkout-save-' + type);
+
+						$fieldWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed').hide();
+						$saveWrapper.removeClass('sab-form-expanded').addClass('sab-form-collapsed').hide();
+						$actions.removeClass('sab-form-expanded').addClass('sab-form-collapsed').hide();
+
+						// 6. Recalculate shipping & taxes
+						$(document.body).trigger('update_checkout');
+
+						// 7. Trigger custom event for Blocks and other listeners
 						$(document).trigger('sab_address_created', {
 							type: type,
 							address_id: newId,
 							address: savedAddress,
 							label: label
 						});
+
+						// 8. Update WooCommerce Blocks Cart Store if in Block context
 						if (window.wp && window.wp.data && window.wp.data.dispatch) {
 							try {
 								var cartStore = window.wp.data.dispatch('wc/store/cart');
 								var checkoutStore = window.wp.data.dispatch('wc/store/checkout');
 								if (cartStore) {
+									var formattedBlockAddr = {
+										first_name: savedAddress.first_name || '',
+										last_name:  savedAddress.last_name || '',
+										company:    savedAddress.company || '',
+										address_1:  savedAddress.address_1 || '',
+										address_2:  savedAddress.address_2 || '',
+										city:       savedAddress.city || '',
+										state:      savedAddress.state || '',
+										postcode:   savedAddress.postal_code || (savedAddress.postcode || ''),
+										country:    savedAddress.country || '',
+										phone:      savedAddress.phone || ''
+									};
 									if (type === 'shipping' && cartStore.setShippingAddress) {
-										cartStore.setShippingAddress(savedAddress);
+										cartStore.setShippingAddress(formattedBlockAddr);
 									} else if (type === 'billing' && cartStore.setBillingAddress) {
-										cartStore.setBillingAddress(savedAddress);
+										formattedBlockAddr.email = savedAddress.email || '';
+										cartStore.setBillingAddress(formattedBlockAddr);
 									}
 								}
 								if (checkoutStore && checkoutStore.setExtensionData) {

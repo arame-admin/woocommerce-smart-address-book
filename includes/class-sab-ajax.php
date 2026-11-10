@@ -433,16 +433,13 @@ class SAB_Ajax {
 			return;
 		}
 
-		// Avoid duplicate address records
-		$existing_addresses = SAB_Database::get_addresses( $current_user_id, $address_type, 'id' );
-		foreach ( $existing_addresses as $existing ) {
-			if (
-				strtolower( trim( (string) $existing->address_1 ) ) === strtolower( trim( (string) $address_data['address_1'] ) ) &&
-				strtolower( trim( (string) $existing->postal_code ) ) === strtolower( trim( (string) $address_data['postal_code'] ) ) &&
-				strtolower( trim( (string) $existing->city ) ) === strtolower( trim( (string) $address_data['city'] ) ) &&
-				strtolower( trim( (string) $existing->first_name ) ) === strtolower( trim( (string) $address_data['first_name'] ) ) &&
-				strtolower( trim( (string) $existing->last_name ) ) === strtolower( trim( (string) $address_data['last_name'] ) )
-			) {
+		// Check if an identical address already exists for this customer
+		$duplicate_id = SAB_Database::find_duplicate_address( $current_user_id, $address_type, $address_data );
+		if ( $duplicate_id ) {
+			SAB_Database::update_last_used( $duplicate_id );
+			$existing = SAB_Database::get_address( $duplicate_id );
+
+			if ( $existing ) {
 				$label_parts = array();
 				if ( ! empty( $existing->nickname ) ) {
 					$label_parts[] = '[' . $existing->nickname . ']';

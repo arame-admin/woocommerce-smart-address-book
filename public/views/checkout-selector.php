@@ -28,7 +28,7 @@ $can_add_address      = SAB_Database::can_add_address( get_current_user_id(), $a
 
 <div class="sab-checkout-selector-container sab-checkout-<?php echo esc_attr( $type ); ?>-selector" data-type="<?php echo esc_attr( $type ); ?>">
 	<div class="sab-selector-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-		<label for="<?php echo esc_attr( $selector_id ); ?>" class="sab-selector-label" style="font-weight: 600; margin-bottom: 0;">
+		<label for="<?php echo esc_attr( $selector_id ); ?>" class="sab-selector-label" style="font-weight: 600; margin-bottom: 0; <?php echo empty( $addresses ) ? 'display:none;' : ''; ?>">
 			<?php echo esc_html( $selector_label ); ?>
 		</label>
 		<?php if ( $enable_checkout_save && $can_add_address ) : ?>
@@ -37,7 +37,7 @@ $can_add_address      = SAB_Database::can_add_address( get_current_user_id(), $a
 		</button>
 		<?php endif; ?>
 	</div>
-	<p class="form-row form-row-wide">
+	<p class="form-row form-row-wide" style="<?php echo empty( $addresses ) ? 'display:none;' : ''; ?>">
 		<select id="<?php echo esc_attr( $selector_id ); ?>" class="sab-checkout-address-dropdown select" data-type="<?php echo esc_attr( $type ); ?>">
 			<?php foreach ( $addresses as $address ) : ?>
 				<?php

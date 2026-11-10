@@ -369,6 +369,62 @@ class SAB_Database {
 	}
 
 	/**
+	 * Find an existing duplicate address for a user.
+	 *
+	 * @param int    $user_id      User ID.
+	 * @param string $address_type 'billing' or 'shipping'.
+	 * @param array  $data         Address data.
+	 * @return int Address ID if found, 0 otherwise.
+	 */
+	public static function find_duplicate_address( $user_id, $address_type, $data ) {
+		global $wpdb;
+
+		$user_id = absint( $user_id );
+		if ( ! $user_id ) {
+			return 0;
+		}
+
+		$table_name   = self::table_name();
+		$address_type = in_array( $address_type, array( 'billing', 'shipping' ), true ) ? $address_type : 'shipping';
+
+		$first_name  = sanitize_text_field( $data['first_name'] ?? '' );
+		$last_name   = sanitize_text_field( $data['last_name'] ?? '' );
+		$address_1   = sanitize_text_field( $data['address_1'] ?? '' );
+		$city        = sanitize_text_field( $data['city'] ?? '' );
+		$postal_code = sanitize_text_field( $data['postal_code'] ?? ( $data['postcode'] ?? '' ) );
+		$country     = sanitize_text_field( $data['country'] ?? '' );
+
+		if ( empty( $first_name ) || empty( $last_name ) || empty( $address_1 ) ) {
+			return 0;
+		}
+
+		$existing_id = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$table_name}
+				 WHERE user_id = %d
+				   AND address_type = %s
+				   AND LOWER(TRIM(first_name)) = LOWER(TRIM(%s))
+				   AND LOWER(TRIM(last_name)) = LOWER(TRIM(%s))
+				   AND LOWER(TRIM(address_1)) = LOWER(TRIM(%s))
+				   AND LOWER(TRIM(city)) = LOWER(TRIM(%s))
+				   AND LOWER(TRIM(postal_code)) = LOWER(TRIM(%s))
+				   AND LOWER(TRIM(country)) = LOWER(TRIM(%s))
+				 LIMIT 1",
+				$user_id,
+				$address_type,
+				$first_name,
+				$last_name,
+				$address_1,
+				$city,
+				$postal_code,
+				$country
+			)
+		);
+
+		return $existing_id ? (int) $existing_id : 0;
+	}
+
+	/**
 	 * Insert a new address into the database.
 	 *
 	 * @param array $data Address data.
@@ -384,6 +440,13 @@ class SAB_Database {
 		$user_id      = absint( $data['user_id'] ?? get_current_user_id() );
 		$address_type = in_array( $data['address_type'] ?? '', array( 'billing', 'shipping' ), true ) ? $data['address_type'] : 'shipping';
 		$is_default   = ! empty( $data['is_default'] ) ? 1 : 0;
+
+		// Check for existing duplicate address for this user to prevent duplicates
+		$duplicate_id = self::find_duplicate_address( $user_id, $address_type, $data );
+		if ( $duplicate_id ) {
+			self::update_last_used( $duplicate_id );
+			return $duplicate_id;
+		}
 
 		// Enforce maximum address limit
 		if ( ! self::can_add_address( $user_id, $address_type ) ) {
