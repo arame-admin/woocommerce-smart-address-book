@@ -243,8 +243,8 @@
 			var html = '<div class="sab-blocks-selector-wrapper sab-blocks-' + type + '-selector" data-type="' + type + '">';
 			html += '  <div class="sab-selector-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">';
 			html += '    <label for="' + selectId + '" style="' + labelStyle + '">' + label + '</label>';
-			if (enableCheckoutSave && canAddForType) {
-				html += '    <button type="button" class="button sab-add-new-address-btn" data-type="' + type + '" style="font-size:12px; padding:4px 10px; cursor:pointer;">' + btnLabel + '</button>';
+			if (enableCheckoutSave) {
+				html += '    <button type="button" class="button sab-add-new-address-btn" data-type="' + type + '" data-can-add="' + (canAddForType ? '1' : '0') + '" style="font-size:12px; padding:4px 10px; cursor:pointer;">' + btnLabel + '</button>';
 			}
 			html += '  </div>';
 			html += '  <div class="sab-selector-control" style="' + selectControlStyle + '">';
@@ -845,7 +845,8 @@
 
 			// Update limits for type if maximum limit configured
 			var currentCount = (type === 'shipping') ? shippingAddresses.length : billingAddresses.length;
-			if (settings.max_addresses > 0 && currentCount >= settings.max_addresses) {
+			var limitForType = (type === 'shipping') ? (settings.limit_shipping || 3) : (settings.limit_billing || 3);
+			if (!settings.is_pro && currentCount >= limitForType) {
 				if (type === 'shipping') {
 					settings.can_add_shipping = false;
 					if (typeof sab_checkout_params !== 'undefined') sab_checkout_params.can_add_shipping = false;

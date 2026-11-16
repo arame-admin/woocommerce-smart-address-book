@@ -31,8 +31,8 @@ $can_add_address      = SAB_Database::can_add_address( get_current_user_id(), $a
 		<label for="<?php echo esc_attr( $selector_id ); ?>" class="sab-selector-label" style="font-weight: 600; margin-bottom: 0; <?php echo empty( $addresses ) ? 'display:none;' : ''; ?>">
 			<?php echo esc_html( $selector_label ); ?>
 		</label>
-		<?php if ( $enable_checkout_save && $can_add_address ) : ?>
-		<button type="button" class="button sab-add-new-address-btn" data-type="<?php echo esc_attr( $type ); ?>" style="font-size: 13px; padding: 4px 10px; cursor: pointer;">
+		<?php if ( $enable_checkout_save ) : ?>
+		<button type="button" class="button sab-add-new-address-btn" data-type="<?php echo esc_attr( $type ); ?>" data-can-add="<?php echo $can_add_address ? '1' : '0'; ?>" style="font-size: 13px; padding: 4px 10px; cursor: pointer;">
 			<?php echo esc_html( $btn_label ); ?>
 		</button>
 		<?php endif; ?>

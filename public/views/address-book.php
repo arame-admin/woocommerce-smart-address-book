@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 $allow_nickname   = 'yes' === get_option( 'sab_enable_nickname', 'yes' );
 $allow_search     = 'yes' === get_option( 'sab_enable_address_search', 'yes' );
-$max_allowed      = (int) get_option( 'sab_max_addresses', 0 );
+$max_allowed      = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit() : (int) get_option( 'sab_max_addresses', 3 );
 $can_add_billing  = SAB_Database::can_add_address( $user_id, 'billing' );
 $can_add_shipping = SAB_Database::can_add_address( $user_id, 'shipping' );
 $can_add          = $can_add_billing || $can_add_shipping;
@@ -29,16 +29,9 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 		</div>
 
 		<div class="sab-header-actions">
-			<?php if ( $can_add ) : ?>
-			<a href="<?php echo esc_url( $add_url ); ?>" class="button button-primary sab-add-btn" data-can-add="1">
-				<span class="dashicons dashicons-plus-alt2"></span> <?php esc_html_e( 'Add New Address', 'smart-address-book' ); ?>
-			</a>
-			<?php else : ?>
-			<?php /* translators: %d: maximum allowed addresses */ ?>
-			<button type="button" class="button sab-add-btn sab-disabled" data-can-add="0" title="<?php echo esc_attr( sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ) ); ?>">
+			<button type="button" class="button button-primary sab-add-btn" data-can-add="<?php echo $can_add ? '1' : '0'; ?>" data-add-url="<?php echo esc_url( $add_url ); ?>">
 				<span class="dashicons dashicons-plus-alt2"></span> <?php esc_html_e( 'Add New Address', 'smart-address-book' ); ?>
 			</button>
-			<?php endif; ?>
 
 			<div class="sab-csv-actions">
 				<button type="button" class="button sab-export-btn" title="<?php esc_attr_e( 'Export all addresses to CSV', 'smart-address-book' ); ?>">
@@ -64,18 +57,28 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 	<!-- Billing Addresses Section -->
 	<?php if ( 'yes' === get_option( 'sab_enable_billing', 'yes' ) ) : ?>
 	<div class="sab-section sab-billing-section">
-		<div class="sab-section-header">
-			<h4><?php esc_html_e( 'Billing Addresses', 'smart-address-book' ); ?></h4>
-			<span class="sab-count-badge"><?php echo esc_html( count( $billing_addresses ) ); ?></span>
+		<div class="sab-section-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+			<div style="display:flex; align-items:center; gap:8px;">
+				<h4 style="margin:0;"><?php esc_html_e( 'Billing Addresses', 'smart-address-book' ); ?></h4>
+				<span class="sab-count-badge"><?php echo esc_html( count( $billing_addresses ) ); ?></span>
+			</div>
+			<button type="button" class="button sab-add-address-btn" data-type="billing">
+				+ <?php esc_html_e( 'Add New Billing Address', 'smart-address-book' ); ?>
+			</button>
 		</div>
 
 		<?php if ( $max_allowed > 0 && ! $can_add_billing ) : ?>
 		<div class="sab-limit-notice sab-billing-limit-notice woocommerce-info" style="margin-bottom: 20px;">
-			<p style="margin: 0;">
-				<strong><?php esc_html_e( 'Maximum Billing Limit Reached:', 'smart-address-book' ); ?></strong>
-				<?php /* translators: %d: maximum allowed billing addresses */ ?>
-				<?php echo esc_html( sprintf( __( 'You have reached the maximum limit of %d saved billing addresses. To add a new billing address, please delete an existing one.', 'smart-address-book' ), $max_allowed ) ); ?>
+			<p style="margin: 0 0 12px 0;">
+				<strong><?php esc_html_e( 'Address limit reached', 'smart-address-book' ); ?></strong><br>
+				<?php esc_html_e( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ); ?>
 			</p>
+			<button type="button" class="button button-primary sab-pro-upgrade-btn">
+				<?php esc_html_e( 'Pro Upgrade – Coming Soon', 'smart-address-book' ); ?>
+			</button>
+			<div class="sab-pro-coming-soon-notice" style="display:none; margin-top: 12px; padding: 10px 14px; background:#e8f4fc; border-left:4px solid #0073aa; border-radius:4px; font-size:13px; color:#1d2327;">
+				<strong><?php esc_html_e( "Pro Upgrade is coming soon! You'll soon be able to upgrade your plan and enjoy unlimited billing and shipping addresses.", 'smart-address-book' ); ?></strong>
+			</div>
 		</div>
 		<?php endif; ?>
 
@@ -83,9 +86,9 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 			<?php if ( empty( $billing_addresses ) ) : ?>
 				<div class="sab-empty-state">
 					<p><?php esc_html_e( 'No saved billing addresses yet.', 'smart-address-book' ); ?></p>
-					<a href="<?php echo esc_url( add_query_arg( array( 'action' => 'add', 'type' => 'billing' ), wc_get_account_endpoint_url( 'sab-address-book' ) ) ); ?>" class="button">
-						<?php esc_html_e( 'Add Billing Address', 'smart-address-book' ); ?>
-					</a>
+					<button type="button" class="button sab-add-address-btn" data-type="billing">
+						<?php esc_html_e( 'Add New Billing Address', 'smart-address-book' ); ?>
+					</button>
 				</div>
 			<?php else : ?>
 				<?php foreach ( $billing_addresses as $address ) : ?>
@@ -140,18 +143,28 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 	<!-- Shipping Addresses Section -->
 	<?php if ( 'yes' === get_option( 'sab_enable_shipping', 'yes' ) ) : ?>
 	<div class="sab-section sab-shipping-section">
-		<div class="sab-section-header">
-			<h4><?php esc_html_e( 'Shipping Addresses', 'smart-address-book' ); ?></h4>
-			<span class="sab-count-badge"><?php echo esc_html( count( $shipping_addresses ) ); ?></span>
+		<div class="sab-section-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+			<div style="display:flex; align-items:center; gap:8px;">
+				<h4 style="margin:0;"><?php esc_html_e( 'Shipping Addresses', 'smart-address-book' ); ?></h4>
+				<span class="sab-count-badge"><?php echo esc_html( count( $shipping_addresses ) ); ?></span>
+			</div>
+			<button type="button" class="button sab-add-address-btn" data-type="shipping">
+				+ <?php esc_html_e( 'Add New Shipping Address', 'smart-address-book' ); ?>
+			</button>
 		</div>
 
 		<?php if ( $max_allowed > 0 && ! $can_add_shipping ) : ?>
 		<div class="sab-limit-notice sab-shipping-limit-notice woocommerce-info" style="margin-bottom: 20px;">
-			<p style="margin: 0;">
-				<strong><?php esc_html_e( 'Maximum Shipping Limit Reached:', 'smart-address-book' ); ?></strong>
-				<?php /* translators: %d: maximum allowed shipping addresses */ ?>
-				<?php echo esc_html( sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses. To add a new shipping address, please delete an existing one.', 'smart-address-book' ), $max_allowed ) ); ?>
+			<p style="margin: 0 0 12px 0;">
+				<strong><?php esc_html_e( 'Address limit reached', 'smart-address-book' ); ?></strong><br>
+				<?php esc_html_e( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ); ?>
 			</p>
+			<button type="button" class="button button-primary sab-pro-upgrade-btn">
+				<?php esc_html_e( 'Pro Upgrade – Coming Soon', 'smart-address-book' ); ?>
+			</button>
+			<div class="sab-pro-coming-soon-notice" style="display:none; margin-top: 12px; padding: 10px 14px; background:#e8f4fc; border-left:4px solid #0073aa; border-radius:4px; font-size:13px; color:#1d2327;">
+				<strong><?php esc_html_e( "Pro Upgrade is coming soon! You'll soon be able to upgrade your plan and enjoy unlimited billing and shipping addresses.", 'smart-address-book' ); ?></strong>
+			</div>
 		</div>
 		<?php endif; ?>
 
@@ -159,9 +172,9 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 			<?php if ( empty( $shipping_addresses ) ) : ?>
 				<div class="sab-empty-state">
 					<p><?php esc_html_e( 'No saved shipping addresses yet.', 'smart-address-book' ); ?></p>
-					<a href="<?php echo esc_url( add_query_arg( array( 'action' => 'add', 'type' => 'shipping' ), wc_get_account_endpoint_url( 'sab-address-book' ) ) ); ?>" class="button">
-						<?php esc_html_e( 'Add Shipping Address', 'smart-address-book' ); ?>
-					</a>
+					<button type="button" class="button sab-add-address-btn" data-type="shipping">
+						<?php esc_html_e( 'Add New Shipping Address', 'smart-address-book' ); ?>
+					</button>
 				</div>
 			<?php else : ?>
 				<?php foreach ( $shipping_addresses as $address ) : ?>

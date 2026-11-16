@@ -417,6 +417,21 @@
 			var $summaryBox = $('#sab_' + type + '_summary_box');
 
 			if (val === 'new') {
+				if (typeof sab_checkout_params !== 'undefined') {
+					var canAdd = (type === 'billing') ? sab_checkout_params.can_add_billing : sab_checkout_params.can_add_shipping;
+					if (typeof canAdd === 'undefined') {
+						canAdd = sab_checkout_params.can_add_address;
+					}
+					if (!canAdd && !sab_checkout_params.is_pro) {
+						var prevVal = $select.data('current-val') || $select.data('prev-val') || '';
+						$select.val(prevVal);
+						if (typeof window.sabShowProLimitModal === 'function') {
+							window.sabShowProLimitModal(type);
+						}
+						return;
+					}
+				}
+
 				var prevId = $select.data('current-val') || $('#sab_' + type + '_address_id').val();
 				if (prevId && prevId !== 'new') {
 					$select.data('prev-val', prevId);
@@ -867,7 +882,9 @@
 					: true;
 				var canAddAddress = true;
 				if (typeof sab_checkout_params !== 'undefined') {
-					if (type === 'billing' && typeof sab_checkout_params.can_add_billing !== 'undefined') {
+					if (sab_checkout_params.is_pro) {
+						canAddAddress = true;
+					} else if (type === 'billing' && typeof sab_checkout_params.can_add_billing !== 'undefined') {
 						canAddAddress = !!sab_checkout_params.can_add_billing;
 					} else if (type === 'shipping' && typeof sab_checkout_params.can_add_shipping !== 'undefined') {
 						canAddAddress = !!sab_checkout_params.can_add_shipping;
@@ -1125,6 +1142,63 @@
 			updateModalStates($(this).val(), '');
 		});
 
+		/**
+		 * Display Pro Limit Modal immediately
+		 */
+		function showProLimitModal(type) {
+			type = (type === 'shipping') ? 'shipping' : 'billing';
+			var $modal = $('#sab-pro-limit-modal');
+			var params = (typeof sab_checkout_params !== 'undefined') ? sab_checkout_params : ((typeof sab_params !== 'undefined') ? sab_params : {});
+			var msg = (type === 'shipping')
+				? (params.limit_message_shipping || 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.')
+				: (params.limit_message_billing || 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.');
+			var title = params.limit_title || 'Address limit reached';
+
+			if ($modal.length) {
+				$modal.find('#sab-pro-limit-title').text(title);
+				$modal.find('#sab-pro-limit-message').text(msg);
+				$modal.find('#sab-pro-coming-soon-notice').hide();
+				$modal.fadeIn(200);
+				$('body').addClass('sab-modal-open');
+			} else {
+				alert(msg);
+			}
+		}
+		if (typeof window.sabShowProLimitModal === 'undefined') {
+			window.sabShowProLimitModal = showProLimitModal;
+		}
+
+		/**
+		 * Temporary Pro Upgrade button click handler
+		 */
+		$(document).on('click', '.sab-pro-upgrade-btn', function(e) {
+			e.preventDefault();
+			var $modal = $('#sab-pro-limit-modal');
+			var noticeText = (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.pro_coming_soon_notice)
+				? sab_checkout_params.pro_coming_soon_notice
+				: "Pro Upgrade is coming soon! You'll soon be able to upgrade your plan and enjoy unlimited billing and shipping addresses.";
+
+			if ($modal.length && $modal.is(':visible')) {
+				$modal.find('#sab-pro-coming-soon-notice').slideDown(200);
+			} else {
+				var $inlineNotice = $(this).siblings('.sab-pro-coming-soon-notice');
+				if ($inlineNotice.length) {
+					$inlineNotice.slideDown(200);
+				} else {
+					alert(noticeText);
+				}
+			}
+		});
+
+		/**
+		 * Close Pro Limit Modal
+		 */
+		$(document).on('click', '.sab-pro-limit-close, #sab-pro-limit-modal .sab-modal-backdrop', function(e) {
+			e.preventDefault();
+			$('#sab-pro-limit-modal').fadeOut(200);
+			$('body').removeClass('sab-modal-open');
+		});
+
 		// Click "Add New Address" button
 		$(document).on('click', '.sab-add-new-address-btn', function(e) {
 			e.preventDefault();
@@ -1140,12 +1214,8 @@
 				if (typeof canAddForType === 'undefined') {
 					canAddForType = sab_checkout_params.can_add_address;
 				}
-				var limitMsgForType = (type === 'billing') ? sab_checkout_params.limit_message_billing : sab_checkout_params.limit_message_shipping;
-				if (!limitMsgForType) {
-					limitMsgForType = sab_checkout_params.limit_message;
-				}
-				if (canAddForType === false && sab_checkout_params.max_addresses > 0) {
-					alert(limitMsgForType || 'You have reached the maximum limit of saved addresses.');
+				if (canAddForType === false && !sab_checkout_params.is_pro) {
+					showProLimitModal(type);
 					return false;
 				}
 			}
@@ -1179,7 +1249,7 @@
 			// Pre-select type radio & show options
 			$modal.find('input[name="address_type"]').prop('checked', false);
 			$modal.find('input[name="address_type"][value="' + type + '"]').prop('checked', true);
-			if (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.max_addresses > 0) {
+			if (typeof sab_checkout_params !== 'undefined' && !sab_checkout_params.is_pro) {
 				$modal.find('input[name="address_type"][value="billing"]').prop('disabled', sab_checkout_params.can_add_billing === false);
 				$modal.find('input[name="address_type"][value="shipping"]').prop('disabled', sab_checkout_params.can_add_shipping === false);
 			}
@@ -1302,11 +1372,11 @@
 			var selectedType = $(this).val();
 			updateModalCountries(selectedType, '');
 			var $notice = $('.sab-modal-notice');
-			if (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.max_addresses > 0) {
+			if (typeof sab_checkout_params !== 'undefined' && !sab_checkout_params.is_pro) {
 				var canAddType = (selectedType === 'billing') ? sab_checkout_params.can_add_billing : sab_checkout_params.can_add_shipping;
 				if (canAddType === false) {
 					var limitMsg = (selectedType === 'billing') ? sab_checkout_params.limit_message_billing : sab_checkout_params.limit_message_shipping;
-					$notice.removeClass('sab-notice-success').addClass('sab-notice-error').html(limitMsg || sab_checkout_params.limit_message).show();
+					$notice.removeClass('sab-notice-success').addClass('sab-notice-error').html(limitMsg || 'You have reached the maximum limit of saved addresses.').show();
 					$('#sab-modal-submit-btn').prop('disabled', true);
 				} else {
 					$notice.hide().empty();
@@ -1343,9 +1413,9 @@
 				if (typeof canAddType === 'undefined') {
 					canAddType = sab_checkout_params.can_add_address;
 				}
-				if (canAddType === false && sab_checkout_params.max_addresses > 0) {
+				if (canAddType === false && !sab_checkout_params.is_pro) {
 					var limitMsg = (type === 'billing') ? sab_checkout_params.limit_message_billing : sab_checkout_params.limit_message_shipping;
-					$notice.removeClass('sab-notice-success').addClass('sab-notice-error').html(limitMsg || sab_checkout_params.limit_message).show();
+					$notice.removeClass('sab-notice-success').addClass('sab-notice-error').html(limitMsg || 'You have reached the maximum limit of saved addresses.').show();
 					return false;
 				}
 			}

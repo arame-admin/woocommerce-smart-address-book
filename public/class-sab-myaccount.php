@@ -60,6 +60,19 @@ class SAB_MyAccount {
 	 */
 	private function render_form( $user_id, $action ) {
 		$address = null;
+		if ( 'add' === $action ) {
+			$requested_type = sanitize_text_field( $_GET['type'] ?? '' );
+			if ( ! empty( $requested_type ) && in_array( $requested_type, array( 'billing', 'shipping' ), true ) ) {
+				if ( ! SAB_Database::can_add_address( $user_id, $requested_type ) ) {
+					$this->render_limit_reached( $user_id, $requested_type );
+					return;
+				}
+			} elseif ( ! SAB_Database::can_add_address( $user_id, 'billing' ) && ! SAB_Database::can_add_address( $user_id, 'shipping' ) ) {
+				$this->render_limit_reached( $user_id, 'billing' );
+				return;
+			}
+		}
+
 		if ( 'edit' === $action ) {
 			$address_id = absint( $_GET['address_id'] ?? 0 );
 			$address    = SAB_Database::get_address( $address_id );
@@ -80,6 +93,41 @@ class SAB_MyAccount {
 
 		$template_path = $this->locate_template( 'address-form.php' );
 		include $template_path;
+	}
+
+	/**
+	 * Render limit reached notification view in My Account.
+	 *
+	 * @param int    $user_id      User ID.
+	 * @param string $address_type 'billing' or 'shipping'.
+	 */
+	private function render_limit_reached( $user_id, $address_type = 'billing' ) {
+		$address_type = in_array( $address_type, array( 'billing', 'shipping' ), true ) ? $address_type : 'billing';
+		$back_url     = wc_get_account_endpoint_url( 'sab-address-book' );
+		$message      = ( 'billing' === $address_type )
+			? __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' )
+			: __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' );
+		?>
+		<div class="sab-address-form-wrapper sab-limit-reached-wrapper">
+			<div class="sab-form-header">
+				<h3><?php esc_html_e( 'Address limit reached', 'smart-address-book' ); ?></h3>
+				<a href="<?php echo esc_url( $back_url ); ?>" class="button sab-back-link">
+					&larr; <?php esc_html_e( 'Back to Address Book', 'smart-address-book' ); ?>
+				</a>
+			</div>
+			<div class="sab-limit-notice woocommerce-info" style="margin-bottom: 24px; padding: 20px;">
+				<p style="font-size: 15px; margin-bottom: 16px;">
+					<?php echo esc_html( $message ); ?>
+				</p>
+				<button type="button" class="button button-primary sab-pro-upgrade-btn">
+					<?php esc_html_e( 'Pro Upgrade – Coming Soon', 'smart-address-book' ); ?>
+				</button>
+				<div class="sab-pro-coming-soon-notice" style="display:none; margin-top: 16px; padding: 12px 16px; background:#e8f4fc; border-left:4px solid #0073aa; border-radius:4px; font-size:14px; color:#1d2327;">
+					<strong><?php esc_html_e( "Pro Upgrade is coming soon! You'll soon be able to upgrade your plan and enjoy unlimited billing and shipping addresses.", 'smart-address-book' ); ?></strong>
+				</div>
+			</div>
+		</div>
+		<?php
 	}
 
 	/**
@@ -113,10 +161,12 @@ class SAB_MyAccount {
 
 		// Check limit if adding
 		if ( ! $address_id ) {
-			$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
+			$max_allowed = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( $address_type ) : 3;
 			if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $user_id, $address_type ) ) {
-				/* translators: 1: maximum allowed addresses, 2: address type */
-				wc_add_notice( sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses.', 'smart-address-book' ), $max_allowed, $address_type ), 'error' );
+				$msg = ( 'billing' === $address_type )
+					? __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' )
+					: __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' );
+				wc_add_notice( $msg, 'error' );
 				return;
 			}
 		}

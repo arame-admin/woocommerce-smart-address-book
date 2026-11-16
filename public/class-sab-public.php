@@ -31,6 +31,7 @@ class SAB_Public {
 		$this->checkout  = new SAB_Checkout();
 
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+		add_action( 'wp_footer', array( $this, 'render_pro_limit_modal' ) );
 	}
 
 	/**
@@ -68,11 +69,12 @@ class SAB_Public {
 			);
 
 			$user_id          = get_current_user_id();
-			$max_allowed      = (int) get_option( 'sab_max_addresses', 0 );
+			$max_allowed      = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit() : 3;
 			$can_add_billing  = SAB_Database::can_add_address( $user_id, 'billing' );
 			$can_add_shipping = SAB_Database::can_add_address( $user_id, 'shipping' );
 			$can_add          = $can_add_billing || $can_add_shipping;
 			$validate_req     = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
+			$is_pro           = function_exists( 'sab_is_pro_active' ) ? sab_is_pro_active() : false;
 
 			wp_localize_script(
 				'sab-public',
@@ -85,13 +87,15 @@ class SAB_Public {
 					'can_add_address'          => $can_add,
 					'can_add_billing'          => $can_add_billing,
 					'can_add_shipping'         => $can_add_shipping,
+					'is_pro'                   => $is_pro,
 					'validate_required_fields' => $validate_req,
-					/* translators: %d: maximum allowed addresses */
-					'limit_message'            => sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ),
-					/* translators: %d: maximum allowed billing addresses */
-					'limit_message_billing'    => sprintf( __( 'You have reached the maximum limit of %d saved billing addresses.', 'smart-address-book' ), $max_allowed ),
-					/* translators: %d: maximum allowed shipping addresses */
-					'limit_message_shipping'   => sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses.', 'smart-address-book' ), $max_allowed ),
+					'add_url'                  => add_query_arg( 'action', 'add', wc_get_account_endpoint_url( 'sab-address-book' ) ),
+					'limit_title'              => __( 'Address limit reached', 'smart-address-book' ),
+					'limit_message'            => __( 'You have reached the maximum limit of saved addresses. Upgrade to Pro to save unlimited addresses.', 'smart-address-book' ),
+					'limit_message_billing'    => __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ),
+					'limit_message_shipping'   => __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ),
+					'pro_button_text'          => __( 'Pro Upgrade – Coming Soon', 'smart-address-book' ),
+					'pro_coming_soon_notice'   => __( "Pro Upgrade is coming soon! You'll soon be able to upgrade your plan and enjoy unlimited billing and shipping addresses.", 'smart-address-book' ),
 					'i18n'     => array(
 						'confirm_delete'    => __( 'Are you sure you want to delete this address?', 'smart-address-book' ),
 						'deleting'          => __( 'Deleting...', 'smart-address-book' ),
@@ -164,12 +168,13 @@ class SAB_Public {
 				return $formatted;
 			};
 
-			$max_allowed       = (int) get_option( 'sab_max_addresses', 0 );
+			$max_allowed       = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit() : 3;
 			$can_add_billing   = SAB_Database::can_add_address( $user_id, 'billing' );
 			$can_add_shipping  = SAB_Database::can_add_address( $user_id, 'shipping' );
 			$can_add           = $can_add_billing || $can_add_shipping;
 			$validate_req      = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
 			$checkout_save     = 'yes' === get_option( 'sab_enable_checkout_save', 'yes' );
+			$is_pro            = function_exists( 'sab_is_pro_active' ) ? sab_is_pro_active() : false;
 
 			$allowed_billing_countries  = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array();
 			$allowed_shipping_countries = ( function_exists( 'WC' ) && WC()->countries ) ? ( WC()->countries->get_shipping_countries() ?: $allowed_billing_countries ) : array();
@@ -198,14 +203,15 @@ class SAB_Public {
 				'can_add_address'          => $can_add,
 				'can_add_billing'          => $can_add_billing,
 				'can_add_shipping'         => $can_add_shipping,
+				'is_pro'                   => $is_pro,
 				'validate_required_fields' => $validate_req,
 				'enable_checkout_save'     => $checkout_save,
-				/* translators: %d: maximum allowed addresses */
-				'limit_message'            => sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ),
-				/* translators: %d: maximum allowed billing addresses */
-				'limit_message_billing'    => sprintf( __( 'You have reached the maximum limit of %d saved billing addresses.', 'smart-address-book' ), $max_allowed ),
-				/* translators: %d: maximum allowed shipping addresses */
-				'limit_message_shipping'   => sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses.', 'smart-address-book' ), $max_allowed ),
+				'limit_title'              => __( 'Address limit reached', 'smart-address-book' ),
+				'limit_message'            => __( 'You have reached the maximum limit of saved addresses. Upgrade to Pro to save unlimited addresses.', 'smart-address-book' ),
+				'limit_message_billing'    => __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ),
+				'limit_message_shipping'   => __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ),
+				'pro_button_text'          => __( 'Pro Upgrade – Coming Soon', 'smart-address-book' ),
+				'pro_coming_soon_notice'   => __( "Pro Upgrade is coming soon! You'll soon be able to upgrade your plan and enjoy unlimited billing and shipping addresses.", 'smart-address-book' ),
 				'i18n'                => array(
 					'select_billing'    => __( 'Select a saved billing address:', 'smart-address-book' ),
 					'select_shipping'   => __( 'Select a saved shipping address:', 'smart-address-book' ),
@@ -238,6 +244,51 @@ class SAB_Public {
 			);
 			wp_localize_script( 'sab-blocks-checkout', 'sab_blocks_checkout_params', $checkout_data );
 		}
+	}
+
+	/**
+	 * Render the Pro Limit Modal template in footer for My Account and Checkout pages.
+	 */
+	public function render_pro_limit_modal() {
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+
+		// Only render on account, checkout, or cart pages where address actions can occur
+		if ( ! is_account_page() && ! is_checkout() && ! is_cart() ) {
+			return;
+		}
+		?>
+		<div id="sab-pro-limit-modal" class="sab-modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="sab-pro-limit-title">
+			<div class="sab-modal-dialog" style="max-width: 480px;">
+				<div class="sab-modal-header">
+					<h3 id="sab-pro-limit-title" style="margin:0; font-size:18px;">
+						<?php esc_html_e( 'Address limit reached', 'smart-address-book' ); ?>
+					</h3>
+					<button type="button" class="sab-modal-close sab-pro-limit-close" aria-label="<?php esc_attr_e( 'Close', 'smart-address-book' ); ?>">&times;</button>
+				</div>
+				<div class="sab-modal-body" style="padding:24px 20px; text-align:center;">
+					<div class="sab-pro-limit-icon" style="margin-bottom:16px;">
+						<span class="dashicons dashicons-lock" style="font-size:44px; width:44px; height:44px; color:#f0ad4e;"></span>
+					</div>
+					<p id="sab-pro-limit-message" class="sab-pro-limit-message" style="font-size:15px; line-height:1.6; margin:0 0 16px 0; color:#333;">
+						<?php esc_html_e( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ); ?>
+					</p>
+					<div id="sab-pro-coming-soon-notice" class="sab-pro-coming-soon-notice" style="display:none; text-align:left; margin:16px 0 0 0; padding:12px 16px; background:#e8f4fc; border-left:4px solid #0073aa; border-radius:4px; font-size:13.5px; line-height:1.5; color:#1d2327;">
+						<strong><?php esc_html_e( "Pro Upgrade is coming soon! You'll soon be able to upgrade your plan and enjoy unlimited billing and shipping addresses.", 'smart-address-book' ); ?></strong>
+					</div>
+				</div>
+				<div class="sab-modal-footer" style="padding:14px 20px; display:flex; justify-content:center; gap:10px; background:#fafafa; border-top:1px solid #e5e5e5;">
+					<button type="button" class="button button-primary sab-pro-upgrade-btn">
+						<?php esc_html_e( 'Pro Upgrade – Coming Soon', 'smart-address-book' ); ?>
+					</button>
+					<button type="button" class="button sab-pro-limit-close">
+						<?php esc_html_e( 'Close', 'smart-address-book' ); ?>
+					</button>
+				</div>
+			</div>
+		</div>
+		<?php
 	}
 }
 

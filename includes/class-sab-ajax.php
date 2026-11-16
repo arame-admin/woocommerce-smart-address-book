@@ -49,12 +49,6 @@ class SAB_Ajax {
 	public function ajax_add_address() {
 		$current_user_id = $this->verify_request();
 
-		// Check if admin is adding for another user
-		$target_user_id = $current_user_id;
-		if ( isset( $_POST['user_id'] ) && current_user_can( 'manage_woocommerce' ) ) {
-			$target_user_id = absint( $_POST['user_id'] );
-		}
-
 		// Check address limits and feature setting for this specific type
 		$address_type = sanitize_text_field( $_POST['address_type'] ?? 'shipping' );
 		$address_type = in_array( $address_type, array( 'billing', 'shipping' ), true ) ? $address_type : 'shipping';
@@ -65,15 +59,23 @@ class SAB_Ajax {
 			return;
 		}
 
-		$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
-		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $target_user_id, $address_type ) ) {
-			/* translators: 1: maximum allowed addresses, 2: address type */
-			wp_send_json_error( array( 'message' => sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses.', 'smart-address-book' ), $max_allowed, $address_type ) ) );
+		$max_allowed = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( $address_type ) : 3;
+		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $current_user_id, $address_type ) ) {
+			$limit_message = ( 'billing' === $address_type )
+				? __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' )
+				: __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' );
+			wp_send_json_error(
+				array(
+					'message'          => $limit_message,
+					'is_limit_reached' => true,
+					'address_type'     => $address_type,
+				)
+			);
 			return;
 		}
 
-		$raw_data = $_POST;
-		$raw_data['user_id'] = $target_user_id;
+		$raw_data            = $_POST;
+		$raw_data['user_id'] = $current_user_id;
 
 		$sanitized = SAB_Address::sanitize( $raw_data );
 		$validation = SAB_Address::validate( $sanitized );
@@ -129,7 +131,7 @@ class SAB_Ajax {
 		}
 
 		// Check permission
-		if ( (int) $existing->user_id !== $current_user_id && ! current_user_can( 'manage_woocommerce' ) ) {
+		if ( (int) $existing->user_id !== $current_user_id ) {
 			wp_send_json_error( array( 'message' => __( 'You do not have permission to edit this address.', 'smart-address-book' ) ), 403 );
 		}
 
@@ -192,7 +194,7 @@ class SAB_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Address not found.', 'smart-address-book' ) ) );
 		}
 
-		if ( (int) $existing->user_id !== $current_user_id && ! current_user_can( 'manage_woocommerce' ) ) {
+		if ( (int) $existing->user_id !== $current_user_id ) {
 			wp_send_json_error( array( 'message' => __( 'You do not have permission to delete this address.', 'smart-address-book' ) ), 403 );
 		}
 
@@ -234,8 +236,7 @@ class SAB_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Address not found.', 'smart-address-book' ) ) );
 		}
 
-		$target_user_id = (int) $existing->user_id;
-		if ( $target_user_id !== $current_user_id && ! current_user_can( 'manage_woocommerce' ) ) {
+		if ( (int) $existing->user_id !== $current_user_id ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'smart-address-book' ) ), 403 );
 		}
 
@@ -247,7 +248,7 @@ class SAB_Ajax {
 			return;
 		}
 
-		$is_default_set = SAB_Database::set_default( $address_id, $target_user_id, $address_type );
+		$is_default_set = SAB_Database::set_default( $address_id, $current_user_id, $address_type );
 
 		if ( ! $is_default_set ) {
 			wp_send_json_error( array( 'message' => __( 'Could not set default address.', 'smart-address-book' ) ) );
@@ -278,7 +279,7 @@ class SAB_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Address not found.', 'smart-address-book' ) ) );
 		}
 
-		if ( (int) $address->user_id !== $current_user_id && ! current_user_can( 'manage_woocommerce' ) ) {
+		if ( (int) $address->user_id !== $current_user_id ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'smart-address-book' ) ), 403 );
 		}
 
@@ -377,10 +378,18 @@ class SAB_Ajax {
 		}
 
 		// Check address limits for this specific type
-		$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
+		$max_allowed = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( $address_type ) : 3;
 		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $current_user_id, $address_type ) ) {
-			/* translators: 1: maximum allowed addresses, 2: address type */
-			wp_send_json_error( array( 'message' => sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses.', 'smart-address-book' ), $max_allowed, $address_type ) ) );
+			$limit_message = ( 'billing' === $address_type )
+				? __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' )
+				: __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' );
+			wp_send_json_error(
+				array(
+					'message'          => $limit_message,
+					'is_limit_reached' => true,
+					'address_type'     => $address_type,
+				)
+			);
 			return;
 		}
 

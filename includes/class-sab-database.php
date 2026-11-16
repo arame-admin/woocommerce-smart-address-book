@@ -891,7 +891,7 @@ class SAB_Database {
 			return false;
 		}
 
-		$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
+		$max_allowed = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( $address_type ) : (int) get_option( 'sab_max_addresses', 3 );
 		if ( $max_allowed <= 0 ) {
 			return true;
 		}
@@ -906,7 +906,13 @@ class SAB_Database {
 		$billing_count  = self::get_address_count_by_type( $user_id, 'billing' );
 		$shipping_count = self::get_address_count_by_type( $user_id, 'shipping' );
 
-		return ( $billing_count < $max_allowed ) || ( $shipping_count < $max_allowed );
+		$billing_limit  = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( 'billing' ) : 3;
+		$shipping_limit = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( 'shipping' ) : 3;
+
+		$can_billing  = ( $billing_limit <= 0 ) || ( $billing_count < $billing_limit );
+		$can_shipping = ( $shipping_limit <= 0 ) || ( $shipping_count < $shipping_limit );
+
+		return ( $can_billing || $can_shipping );
 	}
 }
 

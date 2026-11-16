@@ -25,6 +25,60 @@ define( 'SAB_PLUGIN_FILE', __FILE__ );
 define( 'SAB_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SAB_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SAB_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
+define( 'SAB_FREE_ADDRESS_LIMIT', 3 );
+define( 'SAB_UNLIMITED_ADDRESSES', 0 );
+
+/**
+ * Check if Smart Address Book Pro license is active.
+ *
+ * Safe placeholder: returns false until actual licensing server verification is integrated.
+ * Centralized filter hook allows easy connection to licensing system later.
+ *
+ * @return bool True if active Pro license, false otherwise.
+ */
+function sab_is_pro_active() {
+	$is_pro = false;
+
+	/**
+	 * Filter whether Pro is active.
+	 *
+	 * @param bool $is_pro Current Pro status (default: false).
+	 */
+	return (bool) apply_filters( 'sab_is_pro_active', $is_pro );
+}
+
+/**
+ * Get the maximum address limit for a customer.
+ *
+ * Free, Expired Pro, and Invalid Pro customers are limited to 3 addresses per type.
+ * Active Pro customers have unlimited addresses (0).
+ *
+ * @param string $address_type Optional address type ('billing' or 'shipping').
+ * @return int Maximum allowed addresses (0 = unlimited).
+ */
+function sab_get_address_limit( $address_type = '' ) {
+	$limit = SAB_FREE_ADDRESS_LIMIT;
+
+	if ( sab_is_pro_active() ) {
+		// Active Pro has unlimited addresses (0)
+		$limit = SAB_UNLIMITED_ADDRESSES;
+
+		// If admin configured a specific limit in settings, respect it for Pro
+		$admin_setting = (int) get_option( 'sab_max_addresses', 0 );
+		if ( $admin_setting > 0 ) {
+			$limit = $admin_setting;
+		}
+	}
+
+	/**
+	 * Filter the address limit for a customer.
+	 *
+	 * @param int    $limit        Maximum allowed addresses.
+	 * @param string $address_type Address type ('billing', 'shipping', or empty for general).
+	 * @param bool   $is_pro       Whether Pro is active.
+	 */
+	return (int) apply_filters( 'sab_get_address_limit', $limit, $address_type, sab_is_pro_active() );
+}
 
 /**
  * Declare High-Performance Order Storage (HPOS) Compatibility

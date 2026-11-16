@@ -1226,6 +1226,45 @@ body.sab-modal-open {
 	word-break: break-word;
 }
 
+/* Pro Upgrade Limit Notice & Modal */
+.sab-pro-coming-soon-notice {
+	display: none;
+	margin-top: 14px;
+	padding: 12px 16px;
+	background: #f0f6fc;
+	border-left: 4px solid #2271b1;
+	border-radius: 4px;
+	font-size: 13.5px;
+	line-height: 1.5;
+	color: #1d2327;
+}
+
+#sab-pro-limit-modal .sab-modal-dialog {
+	max-width: 480px;
+}
+
+#sab-pro-limit-modal .sab-modal-body {
+	padding: 24px 20px;
+	text-align: center;
+}
+
+#sab-pro-limit-modal .sab-pro-limit-icon {
+	margin-bottom: 16px;
+}
+
+#sab-pro-limit-modal .sab-pro-limit-icon .dashicons {
+	font-size: 44px;
+	width: 44px;
+	height: 44px;
+	color: #dba617;
+}
+
+#sab-pro-limit-modal .sab-pro-limit-message {
+	font-size: 15px;
+	line-height: 1.6;
+	margin: 0 0 16px 0;
+}
+
 /* ==========================================================================
    Responsive Layout Styles
    ========================================================================== */

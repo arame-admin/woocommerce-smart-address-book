@@ -567,13 +567,105 @@
 		});
 
 		/**
+		 * Display Pro Limit Modal immediately
+		 */
+		function showProLimitModal(type) {
+			type = (type === 'shipping') ? 'shipping' : 'billing';
+			var $modal = $('#sab-pro-limit-modal');
+			var msg = (type === 'shipping')
+				? (sab_params.limit_message_shipping || 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.')
+				: (sab_params.limit_message_billing || 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.');
+
+			if ($modal.length) {
+				$modal.find('#sab-pro-limit-title').text(sab_params.limit_title || 'Address limit reached');
+				$modal.find('#sab-pro-limit-message').text(msg);
+				$modal.find('#sab-pro-coming-soon-notice').hide();
+				$modal.fadeIn(200);
+				$('body').addClass('sab-modal-open');
+			} else {
+				alert(msg);
+			}
+		}
+		window.sabShowProLimitModal = showProLimitModal;
+
+		/**
+		 * Temporary Pro Upgrade button click handler
+		 */
+		$(document).on('click', '.sab-pro-upgrade-btn', function(e) {
+			e.preventDefault();
+			var $modal = $('#sab-pro-limit-modal');
+			var noticeText = (typeof sab_params !== 'undefined' && sab_params.pro_coming_soon_notice)
+				? sab_params.pro_coming_soon_notice
+				: "Pro Upgrade is coming soon! You'll soon be able to upgrade your plan and enjoy unlimited billing and shipping addresses.";
+
+			if ($modal.length && $modal.is(':visible')) {
+				$modal.find('#sab-pro-coming-soon-notice').slideDown(200);
+			} else {
+				var $inlineNotice = $(this).siblings('.sab-pro-coming-soon-notice');
+				if ($inlineNotice.length) {
+					$inlineNotice.slideDown(200);
+				} else {
+					alert(noticeText);
+				}
+			}
+		});
+
+		/**
+		 * Close Pro Limit Modal
+		 */
+		$(document).on('click', '.sab-pro-limit-close, #sab-pro-limit-modal .sab-modal-backdrop', function(e) {
+			e.preventDefault();
+			$('#sab-pro-limit-modal').fadeOut(200);
+			$('body').removeClass('sab-modal-open');
+		});
+
+		/**
+		 * Click section-specific "Add New Billing Address" or "Add New Shipping Address"
+		 */
+		$(document).on('click', '.sab-add-address-btn', function(e) {
+			e.preventDefault();
+			var type = $(this).data('type') || 'billing';
+			var canAdd = (type === 'shipping') ? sab_params.can_add_shipping : sab_params.can_add_billing;
+
+			if (!canAdd && !sab_params.is_pro) {
+				showProLimitModal(type);
+				return false;
+			}
+
+			var baseUrl = sab_params.add_url || window.location.href;
+			var url = baseUrl.split('?')[0] + '?action=add&type=' + encodeURIComponent(type);
+			window.location.href = url;
+		});
+
+		/**
 		 * Prevent adding new address if customer has reached maximum allowed addresses
 		 */
 		$(document).on('click', '.sab-add-btn', function(e) {
-			if (typeof sab_params !== 'undefined' && sab_params.can_add_address === false && sab_params.max_addresses > 0) {
-				e.preventDefault();
-				alert(sab_params.limit_message || 'You have reached the maximum limit of saved addresses.');
-				return false;
+			if (typeof sab_params === 'undefined') return;
+
+			if (!sab_params.is_pro) {
+				if (!sab_params.can_add_billing && !sab_params.can_add_shipping) {
+					e.preventDefault();
+					showProLimitModal('billing');
+					return false;
+				}
+				if (!sab_params.can_add_billing) {
+					e.preventDefault();
+					var baseUrl = $(this).data('add-url') || sab_params.add_url || window.location.href;
+					window.location.href = baseUrl.split('?')[0] + '?action=add&type=shipping';
+					return false;
+				}
+				if (!sab_params.can_add_shipping) {
+					e.preventDefault();
+					var baseUrl2 = $(this).data('add-url') || sab_params.add_url || window.location.href;
+					window.location.href = baseUrl2.split('?')[0] + '?action=add&type=billing';
+					return false;
+				}
+			}
+
+			var addUrl = $(this).data('add-url') || sab_params.add_url;
+			if (addUrl) {
+				window.location.href = addUrl;
 			}
 		});
 

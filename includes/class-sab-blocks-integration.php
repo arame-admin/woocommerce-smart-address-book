@@ -161,16 +161,15 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 			return $formatted;
 		};
 
-		$max_allowed            = (int) get_option( 'sab_max_addresses', 0 );
+		$max_allowed            = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit() : 3;
 		$can_add_billing        = SAB_Database::can_add_address( $user_id, 'billing' );
 		$can_add_shipping       = SAB_Database::can_add_address( $user_id, 'shipping' );
 		$can_add                = $can_add_billing || $can_add_shipping;
 		$validate_req           = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
 		$checkout_save          = 'yes' === get_option( 'sab_enable_checkout_save', 'yes' );
-		/* translators: %d: maximum allowed billing addresses */
-		$limit_message_billing  = sprintf( __( 'You have reached the maximum limit of %d saved billing addresses.', 'smart-address-book' ), $max_allowed );
-		/* translators: %d: maximum allowed shipping addresses */
-		$limit_message_shipping = sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses.', 'smart-address-book' ), $max_allowed );
+		$is_pro                 = function_exists( 'sab_is_pro_active' ) ? sab_is_pro_active() : false;
+		$limit_message_billing  = __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' );
+		$limit_message_shipping = __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' );
 
 			$allowed_billing_countries  = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array();
 			$allowed_shipping_countries = ( function_exists( 'WC' ) && WC()->countries ) ? ( WC()->countries->get_shipping_countries() ?: $allowed_billing_countries ) : array();
@@ -191,12 +190,15 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 				'can_add_address'          => $can_add,
 				'can_add_billing'          => $can_add_billing,
 				'can_add_shipping'         => $can_add_shipping,
+				'is_pro'                   => $is_pro,
 				'validate_required_fields' => $validate_req,
 				'enable_checkout_save'     => $checkout_save,
-				/* translators: %d: maximum allowed addresses */
-				'limit_message'            => sprintf( __( 'You have reached the maximum limit of %d saved addresses.', 'smart-address-book' ), $max_allowed ),
+				'limit_title'              => __( 'Address limit reached', 'smart-address-book' ),
+				'limit_message'            => __( 'You have reached the maximum limit of saved addresses. Upgrade to Pro to save unlimited addresses.', 'smart-address-book' ),
 				'limit_message_billing'    => $limit_message_billing,
 				'limit_message_shipping'   => $limit_message_shipping,
+				'pro_button_text'          => __( 'Pro Upgrade – Coming Soon', 'smart-address-book' ),
+				'pro_coming_soon_notice'   => __( "Pro Upgrade is coming soon! You'll soon be able to upgrade your plan and enjoy unlimited billing and shipping addresses.", 'smart-address-book' ),
 				'ajax_url'                 => admin_url( 'admin-ajax.php' ),
 				'nonce'                    => wp_create_nonce( 'sab_checkout_nonce' ),
 				'countries'                => $allowed_billing_countries,

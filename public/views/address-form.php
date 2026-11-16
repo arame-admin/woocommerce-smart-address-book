@@ -40,7 +40,7 @@ $states    = WC()->countries->get_states( $country );
 $validate_required = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
 $req_mark          = $validate_required ? ' <abbr class="required" title="required">*</abbr>' : '';
 $req_attr          = $validate_required ? ' required' : '';
-$max_allowed       = (int) get_option( 'sab_max_addresses', 0 );
+$max_allowed       = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( $address_type ) : 3;
 $can_add_billing   = SAB_Database::can_add_address( $user_id, 'billing' );
 $can_add_shipping  = SAB_Database::can_add_address( $user_id, 'shipping' );
 $can_add_current   = ( 'billing' === $address_type ) ? $can_add_billing : $can_add_shipping;
@@ -58,12 +58,17 @@ $can_add_current   = ( 'billing' === $address_type ) ? $can_add_billing : $can_a
 	</div>
 
 	<?php if ( ! $is_edit && $max_allowed > 0 && ! $can_add_current ) : ?>
-	<div class="sab-limit-notice woocommerce-error" style="margin-bottom: 20px;">
-		<p style="margin: 0;">
-			<strong><?php esc_html_e( 'Maximum Limit Reached:', 'smart-address-book' ); ?></strong>
-			<?php /* translators: 1: maximum allowed addresses, 2: address type */ ?>
-			<?php echo esc_html( sprintf( __( 'You have reached the maximum limit of %1$d saved %2$s addresses. To add a new %2$s address, please delete an existing one.', 'smart-address-book' ), $max_allowed, $address_type ) ); ?>
+	<div class="sab-limit-notice woocommerce-info" style="margin-bottom: 20px;">
+		<p style="margin: 0 0 10px 0;">
+			<strong><?php esc_html_e( 'Address limit reached', 'smart-address-book' ); ?></strong><br>
+			<?php echo esc_html( ( 'billing' === $address_type ) ? __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ) : __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ) ); ?>
 		</p>
+		<button type="button" class="button button-primary sab-pro-upgrade-btn">
+			<?php esc_html_e( 'Pro Upgrade – Coming Soon', 'smart-address-book' ); ?>
+		</button>
+		<div class="sab-pro-coming-soon-notice" style="display:none; margin-top: 12px; padding: 10px 14px; background:#e8f4fc; border-left:4px solid #0073aa; border-radius:4px; font-size:13px; color:#1d2327;">
+			<strong><?php esc_html_e( "Pro Upgrade is coming soon! You'll soon be able to upgrade your plan and enjoy unlimited billing and shipping addresses.", 'smart-address-book' ); ?></strong>
+		</div>
 	</div>
 	<?php endif; ?>
 
@@ -72,10 +77,8 @@ $can_add_current   = ( 'billing' === $address_type ) ? $can_add_billing : $can_a
 		data-max-allowed="<?php echo esc_attr( $max_allowed ); ?>"
 		data-can-add-billing="<?php echo $can_add_billing ? '1' : '0'; ?>"
 		data-can-add-shipping="<?php echo $can_add_shipping ? '1' : '0'; ?>"
-		<?php /* translators: %d: maximum allowed billing addresses */ ?>
-		data-limit-billing="<?php echo esc_attr( sprintf( __( 'You have reached the maximum limit of %d saved billing addresses. To add a new billing address, please delete an existing one.', 'smart-address-book' ), $max_allowed ) ); ?>"
-		<?php /* translators: %d: maximum allowed shipping addresses */ ?>
-		data-limit-shipping="<?php echo esc_attr( sprintf( __( 'You have reached the maximum limit of %d saved shipping addresses. To add a new shipping address, please delete an existing one.', 'smart-address-book' ), $max_allowed ) ); ?>">
+		data-limit-billing="<?php esc_attr_e( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ); ?>"
+		data-limit-shipping="<?php esc_attr_e( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ); ?>">
 		<?php wp_nonce_field( 'sab_address_form', 'sab_nonce' ); ?>
 		<input type="hidden" name="address_id" value="<?php echo esc_attr( $address_id ); ?>" />
 
