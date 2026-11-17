@@ -50,23 +50,27 @@ function sab_is_pro_active() {
 /**
  * Get the maximum address limit for a customer.
  *
- * Free, Expired Pro, and Invalid Pro customers are limited to 3 addresses per type.
- * Active Pro customers have unlimited addresses (0).
+ * Free customers: Default limit is 3. If admin configures a stricter limit (1 or 2),
+ * that limit applies. If admin configures 0 or 4+, limit remains 3.
+ * Pro customers: Default is unlimited (0). If admin configures a positive limit, that limit applies.
  *
  * @param string $address_type Optional address type ('billing' or 'shipping').
  * @return int Maximum allowed addresses (0 = unlimited).
  */
 function sab_get_address_limit( $address_type = '' ) {
-	$limit = SAB_FREE_ADDRESS_LIMIT;
+	$admin_setting = (int) get_option( 'sab_max_addresses', 0 );
 
 	if ( sab_is_pro_active() ) {
-		// Active Pro has unlimited addresses (0)
-		$limit = SAB_UNLIMITED_ADDRESSES;
-
-		// If admin configured a specific limit in settings, respect it for Pro
-		$admin_setting = (int) get_option( 'sab_max_addresses', 0 );
-		if ( $admin_setting > 0 ) {
+		// Active Pro has unlimited addresses (0) unless admin sets a custom positive limit
+		$limit = ( $admin_setting > 0 ) ? $admin_setting : SAB_UNLIMITED_ADDRESSES;
+	} else {
+		// Free Plan:
+		// - Default limit is 3 (when admin setting is 0 or >= 3)
+		// - If admin configures a stricter limit (e.g. 1 or 2), respect the admin setting
+		if ( $admin_setting > 0 && $admin_setting < SAB_FREE_ADDRESS_LIMIT ) {
 			$limit = $admin_setting;
+		} else {
+			$limit = SAB_FREE_ADDRESS_LIMIT;
 		}
 	}
 

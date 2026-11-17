@@ -1143,7 +1143,53 @@
 		});
 
 		/**
-		 * Display Pro Limit Modal immediately
+		 * Display inline checkout limit notification
+		 */
+		function renderCheckoutLimitNotice($container, type, limit, message) {
+			limit = limit || 3;
+			message = message || ( 'You have reached the maximum limit of ' + limit + ' ' + type + ' addresses. Upgrade to Pro to save unlimited ' + type + ' addresses.' );
+
+			// If notice already exists in this container, refresh text and ensure visible
+			var $existing = $container.find('.sab-checkout-limit-notice');
+			if ($existing.length) {
+				$existing.find('p').text(message);
+				$existing.hide().fadeIn(200);
+				return;
+			}
+
+			var noticeHtml = 
+				'<div class="sab-limit-notice sab-checkout-limit-notice">' +
+					'<button type="button" class="sab-notice-close sab-limit-notice-close" aria-label="Dismiss notice">&times;</button>' +
+					'<span class="sab-limit-title">Address limit reached</span>' +
+					'<p>' + message + '</p>' +
+					'<button type="button" class="button button-primary sab-pro-upgrade-btn">Pro Upgrade – Coming Soon</button>' +
+					'<div class="sab-pro-coming-soon-notice" style="display:none; margin-top: 10px; padding: 10px 14px; background:#e8f4fc; border-left:4px solid #0073aa; border-radius:4px; font-size:13px; color:#1d2327;">' +
+						'<strong>Pro Upgrade is coming soon! You\'ll soon be able to upgrade your plan and enjoy unlimited billing and shipping addresses.</strong>' +
+					'</div>' +
+				'</div>';
+
+			var $notice = $(noticeHtml);
+			var $header = $container.find('.sab-selector-header');
+			if ($header.length) {
+				$header.after($notice);
+			} else {
+				$container.prepend($notice);
+			}
+			$notice.hide().slideDown(200);
+		}
+
+		/**
+		 * Close notice handler for checkout notices
+		 */
+		$(document).on('click', '.sab-notice-close', function(e) {
+			e.preventDefault();
+			$(this).closest('.sab-notice, .sab-limit-notice').fadeOut(200, function() {
+				$(this).remove();
+			});
+		});
+
+		/**
+		 * Display Pro Limit Modal immediately (fallback)
 		 */
 		function showProLimitModal(type) {
 			type = (type === 'shipping') ? 'shipping' : 'billing';
@@ -1199,26 +1245,266 @@
 			$('body').removeClass('sab-modal-open');
 		});
 
+		// Helper: Handle address deletion across Classic Checkout & Block Checkout
+		function handleCheckoutAddressDeleted(type, addressId, data) {
+			type = type || 'shipping';
+			var deletedId = parseInt(addressId, 10);
+			var prefix = (type === 'shipping') ? 'shipping' : 'billing';
+
+			// 1. Classic Checkout: remove option from dropdown
+			var $classicDropdown = $('#sab_' + type + '_address_select');
+			if ($classicDropdown.length) {
+				$classicDropdown.find('option[value="' + deletedId + '"]').remove();
+				var remainingOpts = $classicDropdown.find('option').filter(function() {
+					var val = $(this).val();
+					return val && val !== '' && val !== 'new';
+				});
+
+				if (remainingOpts.length > 0) {
+					var nextId = (data && data.new_default_id) ? data.new_default_id : remainingOpts.first().val();
+					$classicDropdown.val(nextId);
+					$classicDropdown.trigger('change');
+				} else {
+					$classicDropdown.val('');
+					$('#sab_' + type + '_address_id').val('');
+					$('#sab_' + type + '_summary_box').hide();
+					$classicDropdown.closest('p.form-row').hide();
+					$('.sab-checkout-' + type + '-selector .sab-selector-label').hide();
+
+					// Expand native checkout fields so user can input an address
+					var $fieldWrapper = (type === 'billing')
+						? $('.woocommerce-billing-fields__field-wrapper')
+						: $('.woocommerce-shipping-fields__field-wrapper');
+					$fieldWrapper.removeClass('sab-form-collapsed').addClass('sab-form-expanded').show();
+				}
+			}
+
+			// 2. Block Checkout: remove option from dropdown
+			var $blocksDropdown = $('#sab_blocks_' + type + '_address_select');
+			if ($blocksDropdown.length) {
+				$blocksDropdown.find('option[value="' + deletedId + '"]').remove();
+				var remainingBlockOpts = $blocksDropdown.find('option').filter(function() {
+					var val = $(this).val();
+					return val && val !== '' && val !== 'new';
+				});
+
+				if (remainingBlockOpts.length > 0) {
+					var nextBlockId = (data && data.new_default_id) ? data.new_default_id : remainingBlockOpts.first().val();
+					$blocksDropdown.val(nextBlockId);
+					$blocksDropdown.trigger('change');
+				} else {
+					$blocksDropdown.val('');
+					$('#sab_blocks_' + type + '_summary_box').hide();
+					$blocksDropdown.closest('.sab-selector-control').hide();
+					$('.sab-blocks-' + type + '-selector label').hide();
+				}
+			}
+
+			// 3. Recount remaining options from DOM
+			var currentCount = (data && typeof data.count !== 'undefined') ? parseInt(data.count, 10) : 0;
+			var $anyDropdown = $('#sab_' + type + '_address_select, #sab_blocks_' + type + '_address_select');
+			if ($anyDropdown.length) {
+				var optCount = $anyDropdown.find('option').filter(function() {
+					var val = $(this).val();
+					return val && val !== '' && val !== 'new';
+				}).length;
+				if (!isNaN(optCount)) {
+					currentCount = optCount;
+				}
+			}
+
+			var limitVal = (type === 'billing')
+				? (parseInt(sab_checkout_params.limit_billing, 10) || 3)
+				: (parseInt(sab_checkout_params.limit_shipping, 10) || 3);
+			var isPro = (typeof sab_checkout_params !== 'undefined' && !!sab_checkout_params.is_pro);
+			var canAdd = (currentCount < limitVal) || isPro;
+
+			// 4. Update in-memory params
+			if (typeof sab_checkout_params !== 'undefined') {
+				if (type === 'billing') {
+					sab_checkout_params.billing_count = currentCount;
+					sab_checkout_params.can_add_billing = canAdd;
+				} else {
+					sab_checkout_params.shipping_count = currentCount;
+					sab_checkout_params.can_add_shipping = canAdd;
+				}
+				sab_checkout_params.can_add_address = !!(sab_checkout_params.can_add_billing || sab_checkout_params.can_add_shipping);
+			}
+
+			if (typeof sab_blocks_checkout_params !== 'undefined') {
+				if (type === 'billing') {
+					sab_blocks_checkout_params.billing_count = currentCount;
+					sab_blocks_checkout_params.can_add_billing = canAdd;
+				} else {
+					sab_blocks_checkout_params.shipping_count = currentCount;
+					sab_blocks_checkout_params.can_add_shipping = canAdd;
+				}
+				sab_blocks_checkout_params.can_add_address = !!(sab_blocks_checkout_params.can_add_billing || sab_blocks_checkout_params.can_add_shipping);
+			}
+
+			// 5. Update DOM attributes on containers and buttons
+			var $container = $('.sab-checkout-' + type + '-selector, .sab-blocks-' + type + '-selector');
+			$container.attr('data-count', currentCount).data('count', currentCount);
+			$container.attr('data-can-add', canAdd ? '1' : '0').data('can-add', canAdd ? '1' : '0');
+
+			var $addBtn = $container.find('.sab-add-new-address-btn');
+			$addBtn.attr('data-count', currentCount).data('count', currentCount);
+			$addBtn.attr('data-can-add', canAdd ? '1' : '0').data('can-add', canAdd ? '1' : '0');
+
+			// 6. Dismiss any existing limit notification immediately
+			$container.find('.sab-checkout-limit-notice').slideUp(150, function() {
+				$(this).remove();
+			});
+		}
+
+		// Delete address from Checkout Summary Card
+		$(document).on('click', '.sab-summary-delete-btn', function(e) {
+			e.preventDefault();
+			var $btn = $(this);
+			var type = $btn.data('type') || 'shipping';
+			var $dropdown = $('#sab_' + type + '_address_select, #sab_blocks_' + type + '_address_select');
+			var addressId = $dropdown.val() || $('#sab_' + type + '_address_id').val();
+
+			if (!addressId || addressId === 'new') {
+				return;
+			}
+
+			var confirmMsg = (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.i18n && sab_checkout_params.i18n.confirm_delete)
+				? sab_checkout_params.i18n.confirm_delete
+				: 'Are you sure you want to delete this address?';
+
+			if (!confirm(confirmMsg)) {
+				return;
+			}
+
+			var deletingText = (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.i18n && sab_checkout_params.i18n.deleting)
+				? sab_checkout_params.i18n.deleting
+				: 'Deleting...';
+			var origText = $btn.text();
+			$btn.prop('disabled', true).text(deletingText);
+
+			var ajaxUrl = (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.ajax_url)
+				? sab_checkout_params.ajax_url
+				: '/wp-admin/admin-ajax.php';
+			var nonce = (typeof sab_checkout_params !== 'undefined' && sab_checkout_params.nonce)
+				? sab_checkout_params.nonce
+				: '';
+
+			$.ajax({
+				url: ajaxUrl,
+				type: 'POST',
+				dataType: 'json',
+				data: {
+					action: 'sab_delete_address',
+					address_id: addressId,
+					nonce: nonce
+				},
+				success: function(response) {
+					$btn.prop('disabled', false).text(origText);
+					if (response.success && response.data) {
+						handleCheckoutAddressDeleted(type, addressId, response.data);
+						$(document).trigger('sab_address_deleted', [response.data, type, addressId]);
+					} else {
+						alert((response.data && response.data.message) ? response.data.message : 'Error deleting address.');
+					}
+				},
+				error: function() {
+					$btn.prop('disabled', false).text(origText);
+					alert('Server error while deleting address.');
+				}
+			});
+		});
+
+		// Listen to global sab_address_deleted event
+		$(document).on('sab_address_deleted', function(e, data, type, addressId) {
+			if (data && type) {
+				handleCheckoutAddressDeleted(type, addressId, data);
+			}
+		});
+
 		// Click "Add New Address" button
 		$(document).on('click', '.sab-add-new-address-btn', function(e) {
 			e.preventDefault();
 
-			var type = $(this).data('type') || 'shipping';
+			var $btn = $(this);
+			var type = $btn.data('type') || 'shipping';
+			var $container = $btn.closest('.sab-checkout-selector-container, .sab-blocks-selector-wrapper');
+			if (!$container.length) {
+				$container = $('.sab-checkout-' + type + '-selector, .sab-blocks-' + type + '-selector').first();
+			}
 
-			if (typeof sab_checkout_params !== 'undefined') {
-				if (sab_checkout_params.enable_checkout_save === false) {
-					alert('Saving addresses at checkout is disabled.');
-					return false;
+			var params = (typeof sab_checkout_params !== 'undefined') ? sab_checkout_params : ((typeof sab_blocks_checkout_params !== 'undefined') ? sab_blocks_checkout_params : {});
+
+			if (typeof params.enable_checkout_save !== 'undefined' && params.enable_checkout_save === false) {
+				alert('Saving addresses at checkout is disabled.');
+				return false;
+			}
+
+			// Resolve Pro status
+			var isPro = ($btn.data('is-pro') === 1 || $btn.data('is-pro') === '1' || $btn.data('is-pro') === true || (params && !!params.is_pro));
+
+			// Resolve count and limit
+			var limitAttr = parseInt($btn.attr('data-limit'), 10);
+			if (isNaN(limitAttr) && $container.length) {
+				limitAttr = parseInt($container.attr('data-limit'), 10);
+			}
+			var limitVal = !isNaN(limitAttr) ? limitAttr : ((type === 'billing') ? (parseInt(params.limit_billing, 10) || 3) : (parseInt(params.limit_shipping, 10) || 3));
+
+			// Recount options dynamically from selector dropdown (excluding empty and 'new')
+			var countVal = (type === 'billing') ? (params.billing_count || 0) : (params.shipping_count || 0);
+			var $dropdownEl = $('#sab_' + type + '_address_select, #sab_blocks_' + type + '_address_select');
+			if ($dropdownEl.length) {
+				var optionCount = $dropdownEl.find('option').filter(function() {
+					var val = $(this).val();
+					return val && val !== '' && val !== 'new';
+				}).length;
+				if (!isNaN(optionCount)) {
+					countVal = optionCount;
 				}
-				var canAddForType = (type === 'billing') ? sab_checkout_params.can_add_billing : sab_checkout_params.can_add_shipping;
-				if (typeof canAddForType === 'undefined') {
-					canAddForType = sab_checkout_params.can_add_address;
+			} else {
+				var countAttr = parseInt($btn.attr('data-count'), 10);
+				if (isNaN(countAttr) && $container.length) {
+					countAttr = parseInt($container.attr('data-count'), 10);
 				}
-				if (canAddForType === false && !sab_checkout_params.is_pro) {
-					showProLimitModal(type);
-					return false;
+				if (!isNaN(countAttr)) {
+					countVal = countAttr;
 				}
 			}
+
+			// Check can_add for this type dynamically based on live count
+			var canAddForType = (type === 'billing') ? params.can_add_billing : params.can_add_shipping;
+			if (!isPro && limitVal > 0) {
+				if (countVal < limitVal) {
+					canAddForType = true;
+				} else {
+					canAddForType = false;
+				}
+			} else if (isPro) {
+				canAddForType = true;
+			}
+
+			// Immediate check: prevent form from opening if address limit is reached
+			var isLimitReached = !isPro && (
+				canAddForType === false ||
+				canAddForType === 0 ||
+				canAddForType === '0' ||
+				(limitVal > 0 && countVal >= limitVal)
+			);
+
+			if (isLimitReached) {
+				e.stopImmediatePropagation();
+				var limitMsg = $btn.attr('data-limit-message') || (type === 'billing' ? params.limit_message_billing : params.limit_message_shipping) || ( 'You have reached the maximum limit of ' + limitVal + ' ' + type + ' addresses. Upgrade to Pro to save unlimited ' + type + ' addresses.' );
+				renderCheckoutLimitNotice($container, type, limitVal, limitMsg);
+				return false;
+			}
+
+			// Limit not reached: clean up any existing notice in this section and open modal
+			if ($container.length) {
+				$container.find('.sab-checkout-limit-notice').slideUp(150, function() {
+					$(this).remove();
+				});
+			}
+
 			var $modal = $('#sab-checkout-address-modal');
 			if (!$modal.length) {
 				return;
@@ -1569,6 +1855,34 @@
 							// Ensure dropdown row and label are visible
 							$dropdown.closest('p.form-row').show();
 							$selectorContainer.find('.sab-selector-label').show();
+
+							// Update counts and can-add status immediately
+							var newTotalCount = $dropdown.find('option').filter(function() {
+								var v = $(this).val();
+								return v && v !== '' && v !== 'new';
+							}).length;
+							var limitVal = (type === 'billing')
+								? (parseInt(sab_checkout_params.limit_billing, 10) || 3)
+								: (parseInt(sab_checkout_params.limit_shipping, 10) || 3);
+							var isPro = (typeof sab_checkout_params !== 'undefined' && !!sab_checkout_params.is_pro);
+							var canAdd = (newTotalCount < limitVal) || isPro;
+
+							if (typeof sab_checkout_params !== 'undefined') {
+								if (type === 'billing') {
+									sab_checkout_params.billing_count = newTotalCount;
+									sab_checkout_params.can_add_billing = canAdd;
+								} else {
+									sab_checkout_params.shipping_count = newTotalCount;
+									sab_checkout_params.can_add_shipping = canAdd;
+								}
+								sab_checkout_params.can_add_address = !!(sab_checkout_params.can_add_billing || sab_checkout_params.can_add_shipping);
+							}
+
+							$selectorContainer.attr('data-count', newTotalCount).data('count', newTotalCount);
+							$selectorContainer.attr('data-can-add', canAdd ? '1' : '0').data('can-add', canAdd ? '1' : '0');
+							var $secAddBtn = $selectorContainer.find('.sab-add-new-address-btn');
+							$secAddBtn.attr('data-count', newTotalCount).data('count', newTotalCount);
+							$secAddBtn.attr('data-can-add', canAdd ? '1' : '0').data('can-add', canAdd ? '1' : '0');
 						}
 
 						// 2. Update hidden address ID input

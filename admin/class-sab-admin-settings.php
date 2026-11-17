@@ -17,6 +17,7 @@ class SAB_Admin_Settings {
 		add_action( 'woocommerce_settings_tabs_sab_address_book', array( $this, 'render_settings' ) );
 		add_action( 'woocommerce_update_options_sab_address_book', array( $this, 'save_settings' ) );
 		add_action( 'woocommerce_sections_sab_address_book', array( $this, 'output_sections' ) );
+		add_filter( 'pre_update_option_sab_max_addresses', array( $this, 'sanitize_max_addresses' ), 10, 2 );
 	}
 
 	/**
@@ -163,16 +164,36 @@ class SAB_Admin_Settings {
 					'default' => 'yes',
 					'type'    => 'checkbox',
 				),
-				array(
-					'title'             => __( 'Maximum Saved Addresses', 'smart-address-book' ),
-					'desc'              => __( 'Maximum number of addresses a customer can save (set 0 for unlimited)', 'smart-address-book' ),
-					'id'                => 'sab_max_addresses',
-					'default'           => '0',
-					'type'              => 'number',
-					'custom_attributes' => array(
-						'min'  => '0',
-						'step' => '1',
-					),
+				call_user_func(
+					function() {
+						$is_pro = function_exists( 'sab_is_pro_active' ) ? sab_is_pro_active() : false;
+						$setting = array(
+							'title' => __( 'Maximum Saved Addresses', 'smart-address-book' ),
+							'id'    => 'sab_max_addresses',
+							'type'  => 'number',
+						);
+
+						if ( $is_pro ) {
+							$setting['desc']              = __( 'Maximum number of addresses a customer can save (set 0 for unlimited)', 'smart-address-book' );
+							$setting['default']           = '0';
+							$setting['custom_attributes'] = array(
+								'min'  => '0',
+								'step' => '1',
+							);
+						} else {
+							$setting['desc']              = __( 'The Free version supports a maximum of 3 billing addresses and 3 shipping addresses. Upgrade to Pro to configure higher limits or unlimited addresses.', 'smart-address-book' );
+							$setting['default']           = '3';
+							$setting['value']             = '3';
+							$setting['custom_attributes'] = array(
+								'min'      => '3',
+								'max'      => '3',
+								'readonly' => 'readonly',
+								'disabled' => 'disabled',
+							);
+						}
+
+						return $setting;
+					}
 				),
 				array(
 					'title'   => __( 'Address Nicknames', 'smart-address-book' ),
@@ -218,7 +239,30 @@ class SAB_Admin_Settings {
 	 */
 	public function save_settings() {
 		global $current_section;
+		$is_pro = function_exists( 'sab_is_pro_active' ) ? sab_is_pro_active() : false;
+		if ( ! $is_pro && '' === $current_section ) {
+			$_POST['sab_max_addresses'] = '3';
+		}
 		woocommerce_update_options( $this->get_settings( $current_section ) );
+	}
+
+	/**
+	 * Sanitize maximum saved addresses setting.
+	 *
+	 * Free version strictly enforces 3.
+	 * Pro version allows 0 (unlimited) and positive numbers.
+	 *
+	 * @param mixed $new_value New option value.
+	 * @param mixed $old_value Old option value.
+	 * @return int
+	 */
+	public function sanitize_max_addresses( $new_value, $old_value ) {
+		$is_pro = function_exists( 'sab_is_pro_active' ) ? sab_is_pro_active() : false;
+		if ( ! $is_pro ) {
+			return 3;
+		}
+
+		return max( 0, absint( $new_value ) );
 	}
 }
 

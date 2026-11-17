@@ -104,9 +104,10 @@ class SAB_MyAccount {
 	private function render_limit_reached( $user_id, $address_type = 'billing' ) {
 		$address_type = in_array( $address_type, array( 'billing', 'shipping' ), true ) ? $address_type : 'billing';
 		$back_url     = wc_get_account_endpoint_url( 'sab-address-book' );
+		$limit        = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( $address_type ) : 3;
 		$message      = ( 'billing' === $address_type )
-			? __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' )
-			: __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' );
+			? sprintf( __( 'You have reached the maximum limit of %d billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ), $limit )
+			: sprintf( __( 'You have reached the maximum limit of %d shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ), $limit );
 		?>
 		<div class="sab-address-form-wrapper sab-limit-reached-wrapper">
 			<div class="sab-form-header">
@@ -115,7 +116,7 @@ class SAB_MyAccount {
 					&larr; <?php esc_html_e( 'Back to Address Book', 'smart-address-book' ); ?>
 				</a>
 			</div>
-			<div class="sab-limit-notice woocommerce-info" style="margin-bottom: 24px; padding: 20px;">
+			<div class="sab-limit-notice">
 				<p style="font-size: 15px; margin-bottom: 16px;">
 					<?php echo esc_html( $message ); ?>
 				</p>
@@ -164,8 +165,8 @@ class SAB_MyAccount {
 			$max_allowed = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( $address_type ) : 3;
 			if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $user_id, $address_type ) ) {
 				$msg = ( 'billing' === $address_type )
-					? __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' )
-					: __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' );
+					? sprintf( __( 'You have reached the maximum limit of %d billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ), $max_allowed )
+					: sprintf( __( 'You have reached the maximum limit of %d shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ), $max_allowed );
 				wc_add_notice( $msg, 'error' );
 				return;
 			}

@@ -232,55 +232,128 @@ class SAB_Import_Export {
 			wp_send_json_error( array( 'message' => __( 'No addresses selected for import.', 'smart-address-book' ) ) );
 		}
 
-		$user_id     = get_current_user_id();
-		$imported    = 0;
-		$skipped     = 0;
-		$errors      = array();
-		$max_allowed = (int) get_option( 'sab_max_addresses', 0 );
+		$user_id          = get_current_user_id();
+		$imported         = 0;
+		$skipped          = 0;
+		$errors           = array();
+		$limit_hit        = array(
+			'billing'  => false,
+			'shipping' => false,
+		);
+		$skipped_by_limit = array(
+			'billing'  => 0,
+			'shipping' => 0,
+		);
+		$limits           = array(
+			'billing'  => function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( 'billing' ) : 3,
+			'shipping' => function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( 'shipping' ) : 3,
+		);
 
 		foreach ( $selected as $idx => $addr_data ) {
 			if ( ! is_array( $addr_data ) ) {
 				continue;
 			}
 
-			// Enforce feature settings and address limits per type
-			$address_type = in_array( $addr_data['address_type'] ?? 'billing', array( 'billing', 'shipping' ), true ) ? $addr_data['address_type'] : 'billing';
+			// Strictly resolve address type ('billing' or 'shipping')
+			$raw_type = strtolower( trim( (string) ( $addr_data['address_type'] ?? 'billing' ) ) );
+			if ( strpos( $raw_type, 'ship' ) !== false ) {
+				$address_type = 'shipping';
+			} elseif ( strpos( $raw_type, 'bill' ) !== false ) {
+				$address_type = 'billing';
+			} else {
+				$address_type = in_array( $raw_type, array( 'billing', 'shipping' ), true ) ? $raw_type : 'billing';
+			}
+			$addr_data['address_type'] = $address_type;
+
+			$nickname = ! empty( $addr_data['nickname'] ) ? $addr_data['nickname'] : ( '#' . ( $idx + 1 ) );
+
+			// Check if address book feature is enabled for this type
 			if ( 'yes' !== get_option( 'sab_enable_' . $address_type, 'yes' ) ) {
-				$nickname = ! empty( $addr_data['nickname'] ) ? $addr_data['nickname'] : ( '#' . ( $idx + 1 ) );
 				/* translators: 1: Address nickname, 2: Address type */
 				$errors[] = sprintf( __( '%1$s skipped: %2$s address book is currently disabled.', 'smart-address-book' ), $nickname, ucfirst( $address_type ) );
 				$skipped++;
 				continue;
 			}
 
-			if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $user_id, $address_type ) ) {
-				$nickname = ! empty( $addr_data['nickname'] ) ? $addr_data['nickname'] : ( '#' . ( $idx + 1 ) );
-				/* translators: 1: Address nickname, 2: Maximum allowed, 3: Address type */
-				$errors[] = sprintf( __( '%1$s skipped: maximum limit of %2$d saved %3$s addresses reached.', 'smart-address-book' ), $nickname, $max_allowed, $address_type );
-				$skipped++;
-				continue;
-			}
-
 			$addr_data['user_id'] = $user_id;
 
-			$sanitized            = SAB_Address::sanitize( $addr_data );
-			$sanitized['user_id'] = $user_id;
-			$validation           = SAB_Address::validate( $sanitized );
+			$sanitized                 = SAB_Address::sanitize( $addr_data );
+			$sanitized['user_id']      = $user_id;
+			$sanitized['address_type'] = $address_type;
+			$validation                = SAB_Address::validate( $sanitized );
 
 			if ( is_wp_error( $validation ) ) {
-				$nickname = ! empty( $sanitized['nickname'] ) ? $sanitized['nickname'] : ( '#' . ( $idx + 1 ) );
 				$errors[] = sprintf( __( '%s skipped: %s', 'smart-address-book' ), $nickname, $validation->get_error_message() );
 				$skipped++;
 				continue;
 			}
 
+			// Check for duplicate of an existing address for this customer (skip duplicate; do not count as newly imported)
+			$duplicate_id = SAB_Database::find_duplicate_address( $user_id, $address_type, $sanitized );
+			if ( $duplicate_id ) {
+				$errors[] = sprintf( __( '%s skipped: this address already exists in your address book.', 'smart-address-book' ), $nickname );
+				$skipped++;
+				continue;
+			}
+
+			// Check independent limit for this address type
+			$type_limit = $limits[ $address_type ];
+			if ( $type_limit > 0 && ! SAB_Database::can_add_address( $user_id, $address_type ) ) {
+				$limit_hit[ $address_type ] = true;
+				$skipped_by_limit[ $address_type ]++;
+				/* translators: 1: Address nickname, 2: Maximum allowed, 3: Address type */
+				$errors[] = sprintf( __( '%1$s skipped: maximum limit of %2$d saved %3$s addresses reached.', 'smart-address-book' ), $nickname, $type_limit, $address_type );
+				$skipped++;
+				continue;
+			}
+
 			$inserted_id = SAB_Database::add_address( $sanitized );
-			if ( $inserted_id ) {
+			if ( $inserted_id && (int) $inserted_id !== (int) $duplicate_id ) {
 				$imported++;
 			} else {
-				$nickname = ! empty( $sanitized['nickname'] ) ? $sanitized['nickname'] : ( '#' . ( $idx + 1 ) );
 				$errors[] = sprintf( __( '%s could not be saved to database.', 'smart-address-book' ), $nickname );
 				$skipped++;
+			}
+		}
+
+		// Build customer-facing summary message
+		$is_pro        = function_exists( 'sab_is_pro_active' ) ? sab_is_pro_active() : false;
+		$limit_details = array();
+
+		if ( $skipped_by_limit['billing'] > 0 ) {
+			$limit_details[] = sprintf(
+				_n(
+					'%d billing address was skipped because you have reached your maximum billing address limit.',
+					'%d billing addresses were skipped because you have reached your maximum billing address limit.',
+					$skipped_by_limit['billing'],
+					'smart-address-book'
+				),
+				$skipped_by_limit['billing']
+			);
+		}
+
+		if ( $skipped_by_limit['shipping'] > 0 ) {
+			$limit_details[] = sprintf(
+				_n(
+					'%d shipping address was skipped because you have reached your maximum shipping address limit.',
+					'%d shipping addresses were skipped because you have reached your maximum shipping address limit.',
+					$skipped_by_limit['shipping'],
+					'smart-address-book'
+				),
+				$skipped_by_limit['shipping']
+			);
+		}
+
+		$summary_message = sprintf(
+			__( 'Import completed: %1$d imported, %2$d skipped.', 'smart-address-book' ),
+			$imported,
+			$skipped
+		);
+
+		if ( ! empty( $limit_details ) ) {
+			$summary_message .= ' ' . implode( ' ', $limit_details );
+			if ( ! $is_pro ) {
+				$summary_message .= ' ' . __( 'Upgrade to Pro to save unlimited addresses.', 'smart-address-book' );
 			}
 		}
 
@@ -288,6 +361,7 @@ class SAB_Import_Export {
 			array(
 				'imported' => $imported,
 				'skipped'  => $skipped,
+				'message'  => $summary_message,
 				'errors'   => $errors,
 			)
 		);
@@ -357,15 +431,21 @@ class SAB_Import_Export {
 			'postcode'         => 'postal_code',
 			'post code'        => 'postal_code',
 			'postal code'      => 'postal_code',
+			'postal_code'      => 'postal_code',
 			'zip'              => 'postal_code',
 			'zipcode'          => 'postal_code',
 			'zip code'         => 'postal_code',
 			'zip_code'         => 'postal_code',
 			'first name'       => 'first_name',
+			'first_name'       => 'first_name',
 			'last name'        => 'last_name',
+			'last_name'        => 'last_name',
 			'company name'     => 'company',
+			'company'          => 'company',
 			'phone number'     => 'phone',
+			'phone'            => 'phone',
 			'email address'    => 'email',
+			'email'            => 'email',
 			'street address'   => 'address_1',
 			'street address 1' => 'address_1',
 			'street address 2' => 'address_2',
@@ -377,9 +457,18 @@ class SAB_Import_Export {
 			'address 2'        => 'address_2',
 			'address1'         => 'address_1',
 			'address2'         => 'address_2',
+			'address_1'        => 'address_1',
+			'address_2'        => 'address_2',
 			'type'             => 'address_type',
+			'address type'     => 'address_type',
+			'address_type'     => 'address_type',
+			'address-type'     => 'address_type',
+			'addresstype'      => 'address_type',
+			'addr type'        => 'address_type',
+			'addr_type'        => 'address_type',
 			'default'          => 'is_default',
 			'is default'       => 'is_default',
+			'is_default'       => 'is_default',
 		);
 
 		$headers = array();
@@ -417,15 +506,28 @@ class SAB_Import_Export {
 				}
 			}
 
-			// Normalize address_type
+			// Fallback check for address type if key was slightly different
 			if ( empty( $data['address_type'] ) ) {
-				$data['address_type'] = 'shipping';
-			} else {
-				$data['address_type'] = strtolower( trim( $data['address_type'] ) );
-				if ( ! in_array( $data['address_type'], array( 'billing', 'shipping' ), true ) ) {
-					$data['address_type'] = 'shipping';
+				foreach ( array( 'address type', 'type', 'addr type', 'addresstype', 'address-type', 'address_type' ) as $type_alias ) {
+					if ( ! empty( $data[ $type_alias ] ) ) {
+						$data['address_type'] = $data[ $type_alias ];
+						break;
+					}
 				}
 			}
+
+			// Strictly normalize address_type
+			$raw_type = strtolower( trim( (string) ( $data['address_type'] ?? '' ) ) );
+			if ( strpos( $raw_type, 'ship' ) !== false ) {
+				$data['address_type'] = 'shipping';
+			} elseif ( strpos( $raw_type, 'bill' ) !== false ) {
+				$data['address_type'] = 'billing';
+			} elseif ( in_array( $raw_type, array( 'billing', 'shipping' ), true ) ) {
+				$data['address_type'] = $raw_type;
+			} else {
+				$data['address_type'] = 'shipping';
+			}
+			$data['address_type_label'] = ( 'billing' === $data['address_type'] ) ? __( 'Billing', 'smart-address-book' ) : __( 'Shipping', 'smart-address-book' );
 
 			// Enforce feature settings per type
 			if ( 'yes' !== get_option( 'sab_enable_' . $data['address_type'], 'yes' ) ) {
@@ -498,14 +600,35 @@ class SAB_Import_Export {
 			);
 		}
 
-		$valid_addresses = $parsed['addresses'];
-		$errors          = $parsed['skipped'];
-		$imported        = 0;
-		$skipped         = $parsed['skipped_count'];
-		$max_allowed     = (int) get_option( 'sab_max_addresses', 0 );
+		$valid_addresses  = $parsed['addresses'];
+		$errors           = $parsed['skipped'];
+		$imported         = 0;
+		$skipped          = $parsed['skipped_count'];
+		$limit_hit        = array(
+			'billing'  => false,
+			'shipping' => false,
+		);
+		$skipped_by_limit = array(
+			'billing'  => 0,
+			'shipping' => 0,
+		);
+		$limits           = array(
+			'billing'  => function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( 'billing' ) : 3,
+			'shipping' => function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( 'shipping' ) : 3,
+		);
 
 		foreach ( $valid_addresses as $sanitized ) {
-			$address_type = in_array( $sanitized['address_type'] ?? 'billing', array( 'billing', 'shipping' ), true ) ? $sanitized['address_type'] : 'billing';
+			// Strictly resolve address type ('billing' or 'shipping')
+			$raw_type = strtolower( trim( (string) ( $sanitized['address_type'] ?? 'billing' ) ) );
+			if ( strpos( $raw_type, 'ship' ) !== false ) {
+				$address_type = 'shipping';
+			} elseif ( strpos( $raw_type, 'bill' ) !== false ) {
+				$address_type = 'billing';
+			} else {
+				$address_type = in_array( $raw_type, array( 'billing', 'shipping' ), true ) ? $raw_type : 'billing';
+			}
+			$sanitized['address_type'] = $address_type;
+
 			if ( 'yes' !== get_option( 'sab_enable_' . $address_type, 'yes' ) ) {
 				/* translators: 1: Row number, 2: Address type */
 				$errors[] = sprintf( __( 'Row %1$d skipped: %2$s address book is currently disabled.', 'smart-address-book' ), $sanitized['row_num'], ucfirst( $address_type ) );
@@ -513,17 +636,28 @@ class SAB_Import_Export {
 				continue;
 			}
 
-			if ( $max_allowed > 0 ) {
-				if ( ! SAB_Database::can_add_address( $user_id, $address_type ) ) {
-					/* translators: 1: Row number, 2: Maximum allowed, 3: Address type */
-					$errors[] = sprintf( __( 'Row %1$d skipped: maximum limit of %2$d saved %3$s addresses reached.', 'smart-address-book' ), $sanitized['row_num'], $max_allowed, $address_type );
-					$skipped++;
-					continue;
-				}
+			// Check for duplicate of an existing address (skip duplicate; do not count as newly imported)
+			$duplicate_id = SAB_Database::find_duplicate_address( $user_id, $address_type, $sanitized );
+			if ( $duplicate_id ) {
+				/* translators: %d: Row number */
+				$errors[] = sprintf( __( 'Row %d skipped: this address already exists in your address book.', 'smart-address-book' ), $sanitized['row_num'] );
+				$skipped++;
+				continue;
+			}
+
+			// Check independent limit for this address type
+			$type_limit = $limits[ $address_type ];
+			if ( $type_limit > 0 && ! SAB_Database::can_add_address( $user_id, $address_type ) ) {
+				$limit_hit[ $address_type ] = true;
+				$skipped_by_limit[ $address_type ]++;
+				/* translators: 1: Row number, 2: Maximum allowed, 3: Address type */
+				$errors[] = sprintf( __( 'Row %1$d skipped: maximum limit of %2$d saved %3$s addresses reached.', 'smart-address-book' ), $sanitized['row_num'], $type_limit, $address_type );
+				$skipped++;
+				continue;
 			}
 
 			$inserted_id = SAB_Database::add_address( $sanitized );
-			if ( $inserted_id ) {
+			if ( $inserted_id && (int) $inserted_id !== (int) $duplicate_id ) {
 				$imported++;
 			} else {
 				/* translators: %d: Row number */
@@ -532,9 +666,51 @@ class SAB_Import_Export {
 			}
 		}
 
+		// Build customer-facing summary message
+		$is_pro        = function_exists( 'sab_is_pro_active' ) ? sab_is_pro_active() : false;
+		$limit_details = array();
+
+		if ( $skipped_by_limit['billing'] > 0 ) {
+			$limit_details[] = sprintf(
+				_n(
+					'%d billing address was skipped because you have reached your maximum billing address limit.',
+					'%d billing addresses were skipped because you have reached your maximum billing address limit.',
+					$skipped_by_limit['billing'],
+					'smart-address-book'
+				),
+				$skipped_by_limit['billing']
+			);
+		}
+
+		if ( $skipped_by_limit['shipping'] > 0 ) {
+			$limit_details[] = sprintf(
+				_n(
+					'%d shipping address was skipped because you have reached your maximum shipping address limit.',
+					'%d shipping addresses were skipped because you have reached your maximum shipping address limit.',
+					$skipped_by_limit['shipping'],
+					'smart-address-book'
+				),
+				$skipped_by_limit['shipping']
+			);
+		}
+
+		$summary_message = sprintf(
+			__( 'Import completed: %1$d imported, %2$d skipped.', 'smart-address-book' ),
+			$imported,
+			$skipped
+		);
+
+		if ( ! empty( $limit_details ) ) {
+			$summary_message .= ' ' . implode( ' ', $limit_details );
+			if ( ! $is_pro ) {
+				$summary_message .= ' ' . __( 'Upgrade to Pro to save unlimited addresses.', 'smart-address-book' );
+			}
+		}
+
 		return array(
 			'imported' => $imported,
 			'skipped'  => $skipped,
+			'message'  => $summary_message,
 			'errors'   => $errors,
 		);
 	}

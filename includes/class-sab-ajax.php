@@ -62,8 +62,8 @@ class SAB_Ajax {
 		$max_allowed = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( $address_type ) : 3;
 		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $current_user_id, $address_type ) ) {
 			$limit_message = ( 'billing' === $address_type )
-				? __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' )
-				: __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' );
+				? sprintf( __( 'You have reached the maximum limit of %d billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ), $max_allowed )
+				: sprintf( __( 'You have reached the maximum limit of %d shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ), $max_allowed );
 			wp_send_json_error(
 				array(
 					'message'          => $limit_message,
@@ -206,14 +206,27 @@ class SAB_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Could not delete address.', 'smart-address-book' ) ) );
 		}
 
-		$new_default_id = (int) SAB_Database::$last_new_default_id;
+		$new_default_id   = (int) SAB_Database::$last_new_default_id;
+		$billing_count    = SAB_Database::get_address_count_by_type( $current_user_id, 'billing' );
+		$shipping_count   = SAB_Database::get_address_count_by_type( $current_user_id, 'shipping' );
+		$can_add_billing  = SAB_Database::can_add_address( $current_user_id, 'billing' );
+		$can_add_shipping = SAB_Database::can_add_address( $current_user_id, 'shipping' );
+		$new_count        = ( 'shipping' === $address_type ) ? $shipping_count : $billing_count;
+		$can_add          = ( 'shipping' === $address_type ) ? $can_add_shipping : $can_add_billing;
 
 		wp_send_json_success(
 			array(
-				'message'        => __( 'Address deleted successfully.', 'smart-address-book' ),
-				'was_default'    => $was_default,
-				'new_default_id' => $new_default_id,
-				'address_type'   => $address_type,
+				'message'          => __( 'Address deleted successfully.', 'smart-address-book' ),
+				'was_default'      => $was_default,
+				'new_default_id'   => $new_default_id,
+				'address_type'     => $address_type,
+				'deleted_id'       => $address_id,
+				'count'            => $new_count,
+				'billing_count'    => $billing_count,
+				'shipping_count'   => $shipping_count,
+				'can_add_billing'  => $can_add_billing,
+				'can_add_shipping' => $can_add_shipping,
+				'can_add'          => $can_add,
 			)
 		);
 	}
@@ -381,8 +394,8 @@ class SAB_Ajax {
 		$max_allowed = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( $address_type ) : 3;
 		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $current_user_id, $address_type ) ) {
 			$limit_message = ( 'billing' === $address_type )
-				? __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' )
-				: __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' );
+				? sprintf( __( 'You have reached the maximum limit of %d billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ), $max_allowed )
+				: sprintf( __( 'You have reached the maximum limit of %d shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ), $max_allowed );
 			wp_send_json_error(
 				array(
 					'message'          => $limit_message,

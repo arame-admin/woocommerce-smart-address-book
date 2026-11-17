@@ -13,7 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 $allow_nickname   = 'yes' === get_option( 'sab_enable_nickname', 'yes' );
 $allow_search     = 'yes' === get_option( 'sab_enable_address_search', 'yes' );
-$max_allowed      = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit() : (int) get_option( 'sab_max_addresses', 3 );
+$limit_billing    = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( 'billing' ) : 3;
+$limit_shipping   = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( 'shipping' ) : 3;
 $can_add_billing  = SAB_Database::can_add_address( $user_id, 'billing' );
 $can_add_shipping = SAB_Database::can_add_address( $user_id, 'shipping' );
 $can_add          = $can_add_billing || $can_add_shipping;
@@ -67,11 +68,12 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 			</button>
 		</div>
 
-		<?php if ( $max_allowed > 0 && ! $can_add_billing ) : ?>
-		<div class="sab-limit-notice sab-billing-limit-notice woocommerce-info" style="margin-bottom: 20px;">
-			<p style="margin: 0 0 12px 0;">
-				<strong><?php esc_html_e( 'Address limit reached', 'smart-address-book' ); ?></strong><br>
-				<?php esc_html_e( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ); ?>
+		<?php if ( $limit_billing > 0 && ! $can_add_billing ) : ?>
+		<div class="sab-limit-notice sab-billing-limit-notice">
+			<button type="button" class="sab-notice-close sab-limit-notice-close" aria-label="<?php esc_attr_e( 'Dismiss notice', 'smart-address-book' ); ?>">&times;</button>
+			<span class="sab-limit-title"><?php esc_html_e( 'Address limit reached', 'smart-address-book' ); ?></span>
+			<p>
+				<?php echo esc_html( sprintf( __( 'You have reached the maximum limit of %d billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ), $limit_billing ) ); ?>
 			</p>
 			<button type="button" class="button button-primary sab-pro-upgrade-btn">
 				<?php esc_html_e( 'Pro Upgrade – Coming Soon', 'smart-address-book' ); ?>
@@ -153,11 +155,12 @@ $add_url          = add_query_arg( 'action', 'add', wc_get_account_endpoint_url(
 			</button>
 		</div>
 
-		<?php if ( $max_allowed > 0 && ! $can_add_shipping ) : ?>
-		<div class="sab-limit-notice sab-shipping-limit-notice woocommerce-info" style="margin-bottom: 20px;">
-			<p style="margin: 0 0 12px 0;">
-				<strong><?php esc_html_e( 'Address limit reached', 'smart-address-book' ); ?></strong><br>
-				<?php esc_html_e( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ); ?>
+		<?php if ( $limit_shipping > 0 && ! $can_add_shipping ) : ?>
+		<div class="sab-limit-notice sab-shipping-limit-notice">
+			<button type="button" class="sab-notice-close sab-limit-notice-close" aria-label="<?php esc_attr_e( 'Dismiss notice', 'smart-address-book' ); ?>">&times;</button>
+			<span class="sab-limit-title"><?php esc_html_e( 'Address limit reached', 'smart-address-book' ); ?></span>
+			<p>
+				<?php echo esc_html( sprintf( __( 'You have reached the maximum limit of %d shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ), $limit_shipping ) ); ?>
 			</p>
 			<button type="button" class="button button-primary sab-pro-upgrade-btn">
 				<?php esc_html_e( 'Pro Upgrade – Coming Soon', 'smart-address-book' ); ?>

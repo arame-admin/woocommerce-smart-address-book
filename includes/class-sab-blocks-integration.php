@@ -161,15 +161,17 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 			return $formatted;
 		};
 
-		$max_allowed            = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit() : 3;
+		$limit_billing          = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( 'billing' ) : 3;
+		$limit_shipping         = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( 'shipping' ) : 3;
+		$max_allowed            = max( $limit_billing, $limit_shipping );
 		$can_add_billing        = SAB_Database::can_add_address( $user_id, 'billing' );
 		$can_add_shipping       = SAB_Database::can_add_address( $user_id, 'shipping' );
 		$can_add                = $can_add_billing || $can_add_shipping;
 		$validate_req           = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
 		$checkout_save          = 'yes' === get_option( 'sab_enable_checkout_save', 'yes' );
 		$is_pro                 = function_exists( 'sab_is_pro_active' ) ? sab_is_pro_active() : false;
-		$limit_message_billing  = __( 'You have reached the maximum limit of 3 billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' );
-		$limit_message_shipping = __( 'You have reached the maximum limit of 3 shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' );
+		$limit_message_billing  = sprintf( __( 'You have reached the maximum limit of %d billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ), $limit_billing );
+		$limit_message_shipping = sprintf( __( 'You have reached the maximum limit of %d shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ), $limit_shipping );
 
 			$allowed_billing_countries  = ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_allowed_countries() : array();
 			$allowed_shipping_countries = ( function_exists( 'WC' ) && WC()->countries ) ? ( WC()->countries->get_shipping_countries() ?: $allowed_billing_countries ) : array();
@@ -182,11 +184,15 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 				'is_logged_in'             => true,
 				'billing_addresses'        => $format_address_list( $billing_addresses, $default_billing ? $default_billing->id : 0 ),
 				'shipping_addresses'       => $format_address_list( $shipping_addresses, $default_shipping ? $default_shipping->id : 0 ),
+				'billing_count'            => count( $billing_addresses ),
+				'shipping_count'           => count( $shipping_addresses ),
 				'default_billing_id'       => $default_billing ? (int) $default_billing->id : 0,
 				'default_shipping_id'      => $default_shipping ? (int) $default_shipping->id : 0,
 				'enable_billing'           => 'yes' === get_option( 'sab_enable_billing', 'yes' ),
 				'enable_shipping'          => 'yes' === get_option( 'sab_enable_shipping', 'yes' ),
 				'max_addresses'            => $max_allowed,
+				'limit_billing'            => $limit_billing,
+				'limit_shipping'           => $limit_shipping,
 				'can_add_address'          => $can_add,
 				'can_add_billing'          => $can_add_billing,
 				'can_add_shipping'         => $can_add_shipping,
@@ -220,6 +226,9 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 				'save_success'    => __( 'Address saved and selected!', 'smart-address-book' ),
 				'error'           => __( 'An error occurred. Please try again.', 'smart-address-book' ),
 				'edit'            => __( 'Edit', 'smart-address-book' ),
+				'delete'          => __( 'Delete', 'smart-address-book' ),
+				'confirm_delete'  => __( 'Are you sure you want to delete this address?', 'smart-address-book' ),
+				'deleting'        => __( 'Deleting...', 'smart-address-book' ),
 				'save_changes'    => __( 'Save Changes', 'smart-address-book' ),
 				'cancel'          => __( 'Cancel', 'smart-address-book' ),
 			),

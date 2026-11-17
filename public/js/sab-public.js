@@ -9,6 +9,7 @@
 
 		/**
 		 * Helper: Display inline notification.
+		 * Stays visible with manual dismiss (×) button until closed.
 		 */
 		function showNotice(message, isError) {
 			var $container = $('#sab-notices');
@@ -16,15 +17,24 @@
 				$container = $('<div id="sab-notices"></div>').prependTo('.sab-address-book-wrapper');
 			}
 			var cssClass = isError ? 'sab-notice sab-notice-error' : 'sab-notice sab-notice-success';
-			var $notice = $('<div class="' + cssClass + '">' + message + '</div>');
+			var $notice = $(
+				'<div class="' + cssClass + '">' +
+					'<button type="button" class="sab-notice-close" aria-label="Dismiss notice">&times;</button>' +
+					'<div class="sab-notice-content">' + message + '</div>' +
+				'</div>'
+			);
 			$container.html($notice);
-
-			setTimeout(function() {
-				$notice.fadeOut(function() {
-					$(this).remove();
-				});
-			}, 4000);
 		}
+
+		/**
+		 * Dismiss notice handler for .sab-notice and .sab-limit-notice
+		 */
+		$(document).on('click', '.sab-notice-close', function(e) {
+			e.preventDefault();
+			$(this).closest('.sab-notice, .sab-limit-notice').fadeOut(200, function() {
+				$(this).remove();
+			});
+		});
 
 		/**
 		 * 0. Edit Address Navigation Handler
@@ -65,12 +75,35 @@
 				},
 				success: function(response) {
 					if (response.success) {
+						if (response.data) {
+							if (typeof response.data.can_add_billing !== 'undefined') {
+								sab_params.can_add_billing = !!response.data.can_add_billing;
+							}
+							if (typeof response.data.can_add_shipping !== 'undefined') {
+								sab_params.can_add_shipping = !!response.data.can_add_shipping;
+							}
+							sab_params.can_add_address = !!(sab_params.can_add_billing || sab_params.can_add_shipping);
+							if (typeof response.data.billing_count !== 'undefined') {
+								sab_params.billing_count = response.data.billing_count;
+							}
+							if (typeof response.data.shipping_count !== 'undefined') {
+								sab_params.shipping_count = response.data.shipping_count;
+							}
+						}
+
 						$card.fadeOut(300, function() {
 							$(this).remove();
 
-							// Update section count badge
-							var remainingCount = $section.find('.sab-card').length;
+							// Update section count badge immediately
+							var remainingCount = (response.data && typeof response.data.count !== 'undefined')
+								? response.data.count
+								: $section.find('.sab-card').length;
 							$section.find('.sab-count-badge').text(remainingCount);
+
+							// Update can-add status on buttons
+							var canAddThis = (type === 'shipping') ? sab_params.can_add_shipping : sab_params.can_add_billing;
+							$section.find('.sab-add-address-btn').data('can-add', canAddThis ? '1' : '0').attr('data-can-add', canAddThis ? '1' : '0');
+							$('.sab-add-btn').data('can-add', sab_params.can_add_address ? '1' : '0').attr('data-can-add', sab_params.can_add_address ? '1' : '0');
 
 							// If no addresses remain, show empty state
 							if (remainingCount === 0) {
@@ -116,8 +149,11 @@
 							}
 						}
 
-						// If limit warning notice was visible, hide it since an address slot freed up
-						$section.find('.sab-limit-notice').fadeOut();
+						// If limit warning notice was visible, remove it immediately
+						$section.find('.sab-limit-notice').remove();
+
+						// Trigger global event for listeners (e.g. checkout components)
+						$(document).trigger('sab_address_deleted', [response.data, type, addressId]);
 
 						showNotice(response.data.message || 'Address deleted.', false);
 					} else {
@@ -461,9 +497,9 @@
 
 					if (response.success && response.data) {
 						var importResult = response.data;
-						var msg = 'Import finished: ' + importResult.imported + ' imported, ' + importResult.skipped + ' skipped.';
+						var msg = importResult.message || ( 'Import completed: ' + importResult.imported + ' imported, ' + importResult.skipped + ' skipped.' );
 						if (importResult.errors && importResult.errors.length) {
-							msg += '<br/>Errors:<br/>' + importResult.errors.join('<br/>');
+							msg += '<br/><small>' + importResult.errors.join('<br/>') + '</small>';
 						}
 
 						// Close modal
@@ -471,13 +507,29 @@
 						$('body').removeClass('sab-modal-open');
 						$('#sab-csv-file-input').val('');
 
-						// Display import summary
+						// Display import summary with manual close button (no auto-dismissal)
 						showNotice(msg, false);
 
-						// Reload page after brief delay to show updated addresses
-						setTimeout(function() {
-							location.reload();
-						}, 1500);
+						// If addresses were imported, update the address sections in place without full page reload
+						if (importResult.imported > 0) {
+							$.get(window.location.href, function(html) {
+								var $newDom = $(html);
+								if ($newDom.find('.sab-section').length) {
+									$('.sab-section').each(function() {
+										var sectionClasses = $(this).attr('class');
+										var selector = '.' + sectionClasses.trim().split(/\s+/).join('.');
+										var $matched = $newDom.find(selector);
+										if ($matched.length) {
+											$(this).replaceWith($matched);
+										}
+									});
+								}
+								var $newAddBtn = $newDom.find('.sab-add-btn');
+								if ($newAddBtn.length) {
+									$('.sab-add-btn').replaceWith($newAddBtn);
+								}
+							});
+						}
 					} else {
 						alert(response.data.message || 'Import failed.');
 					}
@@ -625,7 +677,23 @@
 		$(document).on('click', '.sab-add-address-btn', function(e) {
 			e.preventDefault();
 			var type = $(this).data('type') || 'billing';
+			var limit = (type === 'shipping') ? (parseInt(sab_params.limit_shipping, 10) || 3) : (parseInt(sab_params.limit_billing, 10) || 3);
+			var currentCardCount = $('.sab-' + type + '-section').find('.sab-card').length;
 			var canAdd = (type === 'shipping') ? sab_params.can_add_shipping : sab_params.can_add_billing;
+
+			// Check live DOM card count dynamically against limit
+			if (!sab_params.is_pro && limit > 0) {
+				if (currentCardCount < limit) {
+					canAdd = true;
+					if (type === 'shipping') {
+						sab_params.can_add_shipping = true;
+					} else {
+						sab_params.can_add_billing = true;
+					}
+				} else {
+					canAdd = false;
+				}
+			}
 
 			if (!canAdd && !sab_params.is_pro) {
 				showProLimitModal(type);
@@ -642,6 +710,20 @@
 		 */
 		$(document).on('click', '.sab-add-btn', function(e) {
 			if (typeof sab_params === 'undefined') return;
+
+			// Dynamically check DOM counts for both billing and shipping
+			var billingCards = $('.sab-billing-section').find('.sab-card').length;
+			var shippingCards = $('.sab-shipping-section').find('.sab-card').length;
+			var billingLimit = parseInt(sab_params.limit_billing, 10) || 3;
+			var shippingLimit = parseInt(sab_params.limit_shipping, 10) || 3;
+
+			if (billingLimit > 0 && billingCards < billingLimit) {
+				sab_params.can_add_billing = true;
+			}
+			if (shippingLimit > 0 && shippingCards < shippingLimit) {
+				sab_params.can_add_shipping = true;
+			}
+			sab_params.can_add_address = !!(sab_params.can_add_billing || sab_params.can_add_shipping);
 
 			if (!sab_params.is_pro) {
 				if (!sab_params.can_add_billing && !sab_params.can_add_shipping) {
@@ -819,7 +901,7 @@
 			var $existingNotice = $('.sab-address-form-wrapper .sab-limit-notice');
 			if (!canAdd) {
 				if (!$existingNotice.length) {
-					$existingNotice = $('<div class="sab-limit-notice woocommerce-error" style="margin-bottom: 20px;"><p style="margin: 0;"><strong>Maximum Limit Reached:</strong> <span class="sab-limit-text"></span></p></div>');
+					$existingNotice = $('<div class="sab-limit-notice" style="margin-bottom: 20px;"><button type="button" class="sab-notice-close sab-limit-notice-close" aria-label="Dismiss notice">&times;</button><span class="sab-limit-title">Address limit reached</span><p style="margin: 0;"><span class="sab-limit-text"></span></p></div>');
 					$('.sab-form-header').after($existingNotice);
 				}
 				$existingNotice.find('.sab-limit-text').text(msg);

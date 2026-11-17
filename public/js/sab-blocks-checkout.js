@@ -240,11 +240,17 @@
 			var labelStyle = hasAddresses ? 'font-weight:600; margin:0; font-size:14px;' : 'font-weight:600; margin:0; font-size:14px; display:none;';
 			var selectControlStyle = hasAddresses ? 'margin-bottom:12px;' : 'margin-bottom:12px; display:none;';
 
-			var html = '<div class="sab-blocks-selector-wrapper sab-blocks-' + type + '-selector" data-type="' + type + '">';
+			var limitForType = (type === 'billing') ? (parseInt(settings.limit_billing, 10) || 3) : (parseInt(settings.limit_shipping, 10) || 3);
+			var isPro = !!settings.is_pro;
+			var limitMsg = (type === 'billing') ? (settings.limit_message_billing || '') : (settings.limit_message_shipping || '');
+			var countForType = (addresses && addresses.length) ? addresses.length : 0;
+			var safeLimitMsg = (limitMsg || '').replace(/"/g, '&quot;');
+
+			var html = '<div class="sab-blocks-selector-wrapper sab-blocks-' + type + '-selector" data-type="' + type + '" data-count="' + countForType + '" data-limit="' + limitForType + '" data-can-add="' + (canAddForType ? '1' : '0') + '" data-is-pro="' + (isPro ? '1' : '0') + '" data-limit-message="' + safeLimitMsg + '">';
 			html += '  <div class="sab-selector-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">';
 			html += '    <label for="' + selectId + '" style="' + labelStyle + '">' + label + '</label>';
 			if (enableCheckoutSave) {
-				html += '    <button type="button" class="button sab-add-new-address-btn" data-type="' + type + '" data-can-add="' + (canAddForType ? '1' : '0') + '" style="font-size:12px; padding:4px 10px; cursor:pointer;">' + btnLabel + '</button>';
+				html += '    <button type="button" class="button sab-add-new-address-btn" data-type="' + type + '" data-can-add="' + (canAddForType ? '1' : '0') + '" data-count="' + countForType + '" data-limit="' + limitForType + '" data-is-pro="' + (isPro ? '1' : '0') + '" data-limit-message="' + safeLimitMsg + '" style="font-size:12px; padding:4px 10px; cursor:pointer;">' + btnLabel + '</button>';
 			}
 			html += '  </div>';
 			html += '  <div class="sab-selector-control" style="' + selectControlStyle + '">';
@@ -272,9 +278,12 @@
 			html +=            formatAddressSummary(selectedAddr, type);
 			html += '        </div>';
 			html += '      </div>';
-			html += '      <div class="sab-summary-action">';
+			html += '      <div class="sab-summary-action" style="display:flex; gap:6px; align-items:center;">';
 			html += '        <button type="button" class="button sab-summary-edit-btn sab-blocks-summary-edit-btn" data-type="' + type + '">';
 			html +=            editLabel;
+			html += '        </button>';
+			html += '        <button type="button" class="button sab-summary-delete-btn sab-blocks-summary-delete-btn" data-type="' + type + '" title="' + (settings.i18n && settings.i18n.delete ? settings.i18n.delete : 'Delete') + '">';
+			html +=            (settings.i18n && settings.i18n.delete ? settings.i18n.delete : 'Delete');
 			html += '        </button>';
 			html += '      </div>';
 			html += '    </div>';
@@ -888,6 +897,66 @@
 			$('#sab_blocks_' + type + '_summary_text').html(formatAddressSummary(edited, type));
 			$('#sab_blocks_' + type + '_summary_box').show();
 			$('#sab_blocks_' + type + '_edit_form').slideUp(250);
+		});
+
+		/**
+		 * Close notice handler for blocks checkout notices
+		 */
+		$(document).on('click', '.sab-notice-close', function(e) {
+			e.preventDefault();
+			$(this).closest('.sab-notice, .sab-limit-notice').fadeOut(200, function() {
+				$(this).remove();
+			});
+		});
+
+		/**
+		 * Pro Upgrade button click handler for Blocks Checkout
+		 */
+		$(document).on('click', '.sab-pro-upgrade-btn', function(e) {
+			e.preventDefault();
+			var $modal = $('#sab-pro-limit-modal');
+			var noticeText = (settings && settings.pro_coming_soon_notice)
+				? settings.pro_coming_soon_notice
+				: "Pro Upgrade is coming soon! You'll soon be able to upgrade your plan and enjoy unlimited billing and shipping addresses.";
+
+			if ($modal.length && $modal.is(':visible')) {
+				$modal.find('#sab-pro-coming-soon-notice').slideDown(200);
+			} else {
+				var $inlineNotice = $(this).siblings('.sab-pro-coming-soon-notice');
+				if ($inlineNotice.length) {
+					$inlineNotice.slideDown(200);
+				} else {
+					alert(noticeText);
+				}
+			}
+		});
+
+		/**
+		 * Listen to address deletion event in Blocks Checkout
+		 */
+		$(document).on('sab_address_deleted', function(e, data, type, addressId) {
+			if (!data || !type) return;
+			var deletedId = parseInt(addressId, 10);
+
+			if (type === 'billing') {
+				billingAddresses = billingAddresses.filter(function(a) { return parseInt(a.id, 10) !== deletedId; });
+			} else {
+				shippingAddresses = shippingAddresses.filter(function(a) { return parseInt(a.id, 10) !== deletedId; });
+			}
+
+			var addrs = (type === 'billing') ? billingAddresses : shippingAddresses;
+			var nextDefaultId = (data && data.new_default_id) ? parseInt(data.new_default_id, 10) : (addrs.length ? parseInt(addrs[0].id, 10) : 0);
+			if (type === 'billing') {
+				defaultBillingId = nextDefaultId;
+			} else {
+				defaultShippingId = nextDefaultId;
+			}
+
+			var $wrapper = $('.sab-blocks-' + type + '-selector');
+			if ($wrapper.length) {
+				var newHtml = buildSelectorHtml(type, addrs, nextDefaultId);
+				$wrapper.replaceWith(newHtml);
+			}
 		});
 
 	});

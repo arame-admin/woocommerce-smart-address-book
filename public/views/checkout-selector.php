@@ -24,15 +24,20 @@ $btn_label      = ( 'billing' === $address_type )
 
 $enable_checkout_save = 'yes' === get_option( 'sab_enable_checkout_save', 'yes' );
 $can_add_address      = SAB_Database::can_add_address( get_current_user_id(), $address_type );
+$limit_type           = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( $address_type ) : 3;
+$is_pro_active        = function_exists( 'sab_is_pro_active' ) ? sab_is_pro_active() : false;
+$limit_msg_text       = ( 'billing' === $address_type )
+	? sprintf( __( 'You have reached the maximum limit of %d billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ), $limit_type )
+	: sprintf( __( 'You have reached the maximum limit of %d shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ), $limit_type );
 ?>
 
-<div class="sab-checkout-selector-container sab-checkout-<?php echo esc_attr( $type ); ?>-selector" data-type="<?php echo esc_attr( $type ); ?>">
+<div class="sab-checkout-selector-container sab-checkout-<?php echo esc_attr( $type ); ?>-selector" data-type="<?php echo esc_attr( $type ); ?>" data-count="<?php echo esc_attr( count( $addresses ) ); ?>" data-limit="<?php echo esc_attr( $limit_type ); ?>" data-can-add="<?php echo $can_add_address ? '1' : '0'; ?>" data-is-pro="<?php echo $is_pro_active ? '1' : '0'; ?>" data-limit-message="<?php echo esc_attr( $limit_msg_text ); ?>">
 	<div class="sab-selector-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
 		<label for="<?php echo esc_attr( $selector_id ); ?>" class="sab-selector-label" style="font-weight: 600; margin-bottom: 0; <?php echo empty( $addresses ) ? 'display:none;' : ''; ?>">
 			<?php echo esc_html( $selector_label ); ?>
 		</label>
 		<?php if ( $enable_checkout_save ) : ?>
-		<button type="button" class="button sab-add-new-address-btn" data-type="<?php echo esc_attr( $type ); ?>" data-can-add="<?php echo $can_add_address ? '1' : '0'; ?>" style="font-size: 13px; padding: 4px 10px; cursor: pointer;">
+		<button type="button" class="button sab-add-new-address-btn" data-type="<?php echo esc_attr( $type ); ?>" data-can-add="<?php echo $can_add_address ? '1' : '0'; ?>" data-count="<?php echo esc_attr( count( $addresses ) ); ?>" data-limit="<?php echo esc_attr( $limit_type ); ?>" data-is-pro="<?php echo $is_pro_active ? '1' : '0'; ?>" data-limit-message="<?php echo esc_attr( $limit_msg_text ); ?>" style="font-size: 13px; padding: 4px 10px; cursor: pointer;">
 			<?php echo esc_html( $btn_label ); ?>
 		</button>
 		<?php endif; ?>
@@ -158,9 +163,12 @@ $can_add_address      = SAB_Database::can_add_address( get_current_user_id(), $a
 					?>
 				</div>
 			</div>
-			<div class="sab-summary-action">
+			<div class="sab-summary-action" style="display: flex; gap: 6px; align-items: center;">
 				<button type="button" class="button sab-summary-edit-btn" data-type="<?php echo esc_attr( $type ); ?>">
 					<?php esc_html_e( 'Edit', 'smart-address-book' ); ?>
+				</button>
+				<button type="button" class="button sab-summary-delete-btn" data-type="<?php echo esc_attr( $type ); ?>" title="<?php esc_attr_e( 'Delete this saved address', 'smart-address-book' ); ?>">
+					<?php esc_html_e( 'Delete', 'smart-address-book' ); ?>
 				</button>
 			</div>
 		</div>
