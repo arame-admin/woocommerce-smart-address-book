@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$address_type = ! empty( $address_type ) ? $address_type : ( $type ?? 'billing' );
+$address_type = ! empty( $address_type ) ? $address_type : 'billing';
 ?>
 
 <div class="sab-order-picker-wrap" style="margin-top: 10px; padding: 8px 10px; background: #f6f7f7; border: 1px solid #c3c4c7; border-radius: 4px;">

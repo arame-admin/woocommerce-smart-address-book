@@ -178,30 +178,37 @@
 		 * 2. Admin Order Screen Address Picker Handler
 		 * ======================================================== */
 
+		function escapeHtml(str) {
+			if (!str || typeof str !== 'string') {
+				return '';
+			}
+			return $('<div>').text(str).html();
+		}
+
 		$(document).on('change', '.sab-order-address-select', function() {
 			var $select = $(this);
 			var type = $select.data('type') || 'billing';
 			var prefix = (type === 'shipping') ? 'shipping' : 'billing';
 			var $opt = $select.find('option:selected');
-			var raw = $opt.data('address');
+			var selectedAddressData = $opt.data('address');
 
-			if (!raw) {
+			if (!selectedAddressData) {
 				return;
 			}
 
 			// Map into WooCommerce admin order fields (supporting both classic meta fields and HPOS)
 			var fieldMap = {
-				'first_name': raw.first_name || '',
-				'last_name':  raw.last_name || '',
-				'company':    raw.company || '',
-				'address_1':  raw.address_1 || '',
-				'address_2':  raw.address_2 || '',
-				'city':       raw.city || '',
-				'state':      raw.state || '',
-				'postcode':   raw.postal_code || '',
-				'country':    raw.country || '',
-				'phone':      raw.phone || '',
-				'email':      raw.email || ''
+				'first_name': selectedAddressData.first_name || '',
+				'last_name':  selectedAddressData.last_name || '',
+				'company':    selectedAddressData.company || '',
+				'address_1':  selectedAddressData.address_1 || '',
+				'address_2':  selectedAddressData.address_2 || '',
+				'city':       selectedAddressData.city || '',
+				'state':      selectedAddressData.state || '',
+				'postcode':   selectedAddressData.postal_code || '',
+				'country':    selectedAddressData.country || '',
+				'phone':      selectedAddressData.phone || '',
+				'email':      selectedAddressData.email || ''
 			};
 
 			$.each(fieldMap, function(key, val) {
@@ -218,15 +225,30 @@
 				}
 			});
 
-			// If edit address modal / section is open, update visible preview text
-			var formatted = (raw.first_name + ' ' + raw.last_name).trim() + '<br/>' +
-				(raw.company ? raw.company + '<br/>' : '') +
-				raw.address_1 + '<br/>' +
-				(raw.address_2 ? raw.address_2 + '<br/>' : '') +
-				raw.city + ', ' + raw.state + ' ' + (raw.postal_code || '') + '<br/>' +
-				raw.country;
+			// If edit address modal / section is open, update visible preview text with HTML escaping (Point 14)
+			var fullName = (escapeHtml(selectedAddressData.first_name) + ' ' + escapeHtml(selectedAddressData.last_name)).trim();
+			var lines = [];
+			if (fullName) {
+				lines.push(fullName);
+			}
+			if (selectedAddressData.company) {
+				lines.push(escapeHtml(selectedAddressData.company));
+			}
+			if (selectedAddressData.address_1) {
+				lines.push(escapeHtml(selectedAddressData.address_1));
+			}
+			if (selectedAddressData.address_2) {
+				lines.push(escapeHtml(selectedAddressData.address_2));
+			}
+			var cityLine = escapeHtml(selectedAddressData.city) + ', ' + escapeHtml(selectedAddressData.state) + ' ' + escapeHtml(selectedAddressData.postal_code || '');
+			if (cityLine.trim() !== ',') {
+				lines.push(cityLine);
+			}
+			if (selectedAddressData.country) {
+				lines.push(escapeHtml(selectedAddressData.country));
+			}
 
-			$('.order_data_column .' + prefix + '_address p').html(formatted);
+			$('.order_data_column .' + prefix + '_address p').html(lines.join('<br/>'));
 		});
 
 	});

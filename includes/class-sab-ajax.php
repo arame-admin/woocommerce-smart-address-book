@@ -25,7 +25,7 @@ class SAB_Ajax {
 	}
 
 	/**
-	 * Check common permissions and verify nonce.
+	 * Check common permissions and verify context-scoped nonce (Point 13 & Issue 1).
 	 *
 	 * @param string $action Nonce action name.
 	 * @return int User ID.
@@ -36,7 +36,26 @@ class SAB_Ajax {
 		}
 
 		$nonce = sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ?? ( $_REQUEST['_ajax_nonce'] ?? '' ) ) );
-		if ( ! wp_verify_nonce( $nonce, $action ) && ! wp_verify_nonce( $nonce, 'sab_admin_nonce' ) && ! wp_verify_nonce( $nonce, 'sab_checkout_nonce' ) ) {
+		if ( empty( $nonce ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security check failed: missing nonce.', 'smart-address-book' ) ), 403 );
+		}
+
+		$verified = false;
+
+		// 1. Explicit verification of requested action
+		if ( wp_verify_nonce( $nonce, $action ) ) {
+			$verified = true;
+		} elseif ( wp_verify_nonce( $nonce, 'sab_admin_nonce' ) ) {
+			// Admins with appropriate capability can perform operations with sab_admin_nonce
+			if ( current_user_can( 'manage_woocommerce' ) || current_user_can( 'edit_users' ) ) {
+				$verified = true;
+			}
+		} elseif ( 'sab_nonce' === $action && wp_verify_nonce( $nonce, 'sab_checkout_nonce' ) ) {
+			// Allow sab_checkout_nonce for actions that accept default sab_nonce (e.g. sab_delete_address called from checkout)
+			$verified = true;
+		}
+
+		if ( ! $verified ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed. Please refresh the page.', 'smart-address-book' ) ), 403 );
 		}
 
@@ -49,6 +68,16 @@ class SAB_Ajax {
 	public function ajax_add_address() {
 		$current_user_id = $this->verify_request();
 
+		// Check permission and target user ID for admin operations (Point 12)
+		$is_admin       = current_user_can( 'manage_woocommerce' ) || current_user_can( 'edit_users' );
+		$target_user_id = ( $is_admin && ! empty( $_POST['user_id'] ) ) ? absint( $_POST['user_id'] ) : $current_user_id;
+
+		// Validate that the target user actually exists (Issue 5)
+		if ( ! get_userdata( $target_user_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Specified customer does not exist.', 'smart-address-book' ) ), 400 );
+			return;
+		}
+
 		// Check address limits and feature setting for this specific type
 		$address_type = sanitize_text_field( $_POST['address_type'] ?? 'shipping' );
 		$address_type = in_array( $address_type, array( 'billing', 'shipping' ), true ) ? $address_type : 'shipping';
@@ -60,7 +89,7 @@ class SAB_Ajax {
 		}
 
 		$max_allowed = function_exists( 'sab_get_address_limit' ) ? sab_get_address_limit( $address_type ) : 3;
-		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $current_user_id, $address_type ) ) {
+		if ( $max_allowed > 0 && ! SAB_Database::can_add_address( $target_user_id, $address_type ) ) {
 			$limit_message = ( 'billing' === $address_type )
 				? sprintf( __( 'You have reached the maximum limit of %d billing addresses. Upgrade to Pro to save unlimited billing addresses.', 'smart-address-book' ), $max_allowed )
 				: sprintf( __( 'You have reached the maximum limit of %d shipping addresses. Upgrade to Pro to save unlimited shipping addresses.', 'smart-address-book' ), $max_allowed );
@@ -75,10 +104,10 @@ class SAB_Ajax {
 		}
 
 		$raw_data            = $_POST;
-		$raw_data['user_id'] = $current_user_id;
+		$raw_data['user_id'] = $target_user_id;
 
-		$sanitized = SAB_Address::sanitize( $raw_data );
-		$validation = SAB_Address::validate( $sanitized );
+		$sanitized  = SAB_Address::sanitize( $raw_data );
+		$validation = SAB_Address::validate_address( $sanitized );
 
 		if ( is_wp_error( $validation ) ) {
 			$errors_map = array();
@@ -120,7 +149,8 @@ class SAB_Ajax {
 	public function ajax_update_address() {
 		$current_user_id = $this->verify_request();
 
-		$address_id = absint( $_POST['address_id'] ?? ( $_POST['id'] ?? 0 ) );
+		// Standardize on address_id with fallback to id (Point 9)
+		$address_id = absint( $_REQUEST['address_id'] ?? ( $_REQUEST['id'] ?? 0 ) );
 		if ( ! $address_id ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid address ID.', 'smart-address-book' ) ) );
 		}
@@ -130,8 +160,15 @@ class SAB_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Address not found.', 'smart-address-book' ) ) );
 		}
 
-		// Check permission
-		if ( (int) $existing->user_id !== $current_user_id ) {
+		// Validate that the target user actually exists (Issue 5)
+		if ( ! get_userdata( (int) $existing->user_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Address owner does not exist or has been removed.', 'smart-address-book' ) ), 400 );
+			return;
+		}
+
+		// Check permission (Point 12: allow users with manage_woocommerce or edit_users)
+		$is_admin = current_user_can( 'manage_woocommerce' ) || current_user_can( 'edit_users' );
+		if ( (int) $existing->user_id !== $current_user_id && ! $is_admin ) {
 			wp_send_json_error( array( 'message' => __( 'You do not have permission to edit this address.', 'smart-address-book' ) ), 403 );
 		}
 
@@ -141,10 +178,10 @@ class SAB_Ajax {
 			return;
 		}
 
-		$sanitized = SAB_Address::sanitize( $_POST );
+		$sanitized            = SAB_Address::sanitize( $_POST );
 		$sanitized['user_id'] = (int) $existing->user_id; // Preserve owner
 
-		$validation = SAB_Address::validate( $sanitized );
+		$validation = SAB_Address::validate_address( $sanitized );
 		if ( is_wp_error( $validation ) ) {
 			$errors_map = array();
 			foreach ( $validation->get_error_codes() as $code ) {
@@ -184,7 +221,8 @@ class SAB_Ajax {
 	public function ajax_delete_address() {
 		$current_user_id = $this->verify_request();
 
-		$address_id = absint( $_POST['address_id'] ?? ( $_POST['id'] ?? 0 ) );
+		// Standardize on address_id with fallback to id (Point 9)
+		$address_id = absint( $_REQUEST['address_id'] ?? ( $_REQUEST['id'] ?? 0 ) );
 		if ( ! $address_id ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid address ID.', 'smart-address-book' ) ) );
 		}
@@ -194,12 +232,21 @@ class SAB_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Address not found.', 'smart-address-book' ) ) );
 		}
 
-		if ( (int) $existing->user_id !== $current_user_id ) {
+		// Check permission (Point 12: allow users with manage_woocommerce or edit_users)
+		$is_admin = current_user_can( 'manage_woocommerce' ) || current_user_can( 'edit_users' );
+		if ( (int) $existing->user_id !== $current_user_id && ! $is_admin ) {
 			wp_send_json_error( array( 'message' => __( 'You do not have permission to delete this address.', 'smart-address-book' ) ), 403 );
 		}
 
-		$was_default  = ( (int) $existing->is_default === 1 );
-		$address_type = $existing->address_type;
+		// Validate that the target user actually exists (Issue 5)
+		if ( ! get_userdata( (int) $existing->user_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Address owner does not exist or has been removed.', 'smart-address-book' ) ), 400 );
+			return;
+		}
+
+		$target_user_id = (int) $existing->user_id;
+		$was_default    = ( (int) $existing->is_default === 1 );
+		$address_type   = $existing->address_type;
 
 		$deleted = SAB_Database::delete_address( $address_id );
 		if ( ! $deleted ) {
@@ -207,10 +254,10 @@ class SAB_Ajax {
 		}
 
 		$new_default_id   = (int) SAB_Database::$last_new_default_id;
-		$billing_count    = SAB_Database::get_address_count_by_type( $current_user_id, 'billing' );
-		$shipping_count   = SAB_Database::get_address_count_by_type( $current_user_id, 'shipping' );
-		$can_add_billing  = SAB_Database::can_add_address( $current_user_id, 'billing' );
-		$can_add_shipping = SAB_Database::can_add_address( $current_user_id, 'shipping' );
+		$billing_count    = SAB_Database::get_address_count_by_type( $target_user_id, 'billing' );
+		$shipping_count   = SAB_Database::get_address_count_by_type( $target_user_id, 'shipping' );
+		$can_add_billing  = SAB_Database::can_add_address( $target_user_id, 'billing' );
+		$can_add_shipping = SAB_Database::can_add_address( $target_user_id, 'shipping' );
 		$new_count        = ( 'shipping' === $address_type ) ? $shipping_count : $billing_count;
 		$can_add          = ( 'shipping' === $address_type ) ? $can_add_shipping : $can_add_billing;
 
@@ -237,7 +284,8 @@ class SAB_Ajax {
 	public function ajax_set_default() {
 		$current_user_id = $this->verify_request();
 
-		$address_id   = absint( $_POST['address_id'] ?? ( $_POST['id'] ?? 0 ) );
+		// Standardize on address_id with fallback to id (Point 9)
+		$address_id   = absint( $_REQUEST['address_id'] ?? ( $_REQUEST['id'] ?? 0 ) );
 		$address_type = sanitize_text_field( $_POST['address_type'] ?? ( $_POST['type'] ?? 'shipping' ) );
 
 		if ( ! $address_id ) {
@@ -249,10 +297,19 @@ class SAB_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Address not found.', 'smart-address-book' ) ) );
 		}
 
-		if ( (int) $existing->user_id !== $current_user_id ) {
+		// Check permission (Point 12: allow admin)
+		$is_admin = current_user_can( 'manage_woocommerce' ) || current_user_can( 'edit_users' );
+		if ( (int) $existing->user_id !== $current_user_id && ! $is_admin ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'smart-address-book' ) ), 403 );
 		}
 
+		// Validate that the target user actually exists (Issue 5)
+		if ( ! get_userdata( (int) $existing->user_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Address owner does not exist or has been removed.', 'smart-address-book' ) ), 400 );
+			return;
+		}
+
+		$target_user_id = (int) $existing->user_id;
 		$address_type   = in_array( $address_type, array( 'billing', 'shipping' ), true ) ? $address_type : $existing->address_type;
 
 		if ( 'yes' !== get_option( 'sab_enable_' . $address_type, 'yes' ) ) {
@@ -261,7 +318,7 @@ class SAB_Ajax {
 			return;
 		}
 
-		$is_default_set = SAB_Database::set_default( $address_id, $current_user_id, $address_type );
+		$is_default_set = SAB_Database::set_default( $address_id, $target_user_id, $address_type );
 
 		if ( ! $is_default_set ) {
 			wp_send_json_error( array( 'message' => __( 'Could not set default address.', 'smart-address-book' ) ) );
@@ -282,7 +339,8 @@ class SAB_Ajax {
 	public function ajax_get_address() {
 		$current_user_id = $this->verify_request();
 
-		$address_id = absint( $_GET['address_id'] ?? ( $_GET['id'] ?? 0 ) );
+		// Standardize on address_id with fallback to id (Point 9)
+		$address_id = absint( $_REQUEST['address_id'] ?? ( $_REQUEST['id'] ?? 0 ) );
 		if ( ! $address_id ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid address ID.', 'smart-address-book' ) ) );
 		}
@@ -292,15 +350,40 @@ class SAB_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Address not found.', 'smart-address-book' ) ) );
 		}
 
-		if ( (int) $address->user_id !== $current_user_id ) {
+		// Check permission (Point 12: allow admin)
+		$is_admin = current_user_can( 'manage_woocommerce' ) || current_user_can( 'edit_users' );
+		if ( (int) $address->user_id !== $current_user_id && ! $is_admin ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'smart-address-book' ) ), 403 );
+		}
+
+		// Validate that the target user actually exists (Issue 5)
+		if ( ! get_userdata( (int) $address->user_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Address owner does not exist or has been removed.', 'smart-address-book' ) ), 400 );
+			return;
 		}
 
 		wp_send_json_success( array( 'address' => $address ) );
 	}
 
 	/**
-	 * FR-09: Search addresses via AJAX.
+	 * FR-09: Search customer saved addresses via AJAX (Point 27).
+	 *
+	 * Query Parameters:
+	 *  - term (string)   Search query matching nickname, name, company, city, state, postal code, street or phone.
+	 *  - type (string)   Optional address type filter ('billing' or 'shipping').
+	 *  - nonce (string)  Security nonce verified by verify_request().
+	 *
+	 * Returns JSON payload:
+	 *  - success (bool)  True on success.
+	 *  - data (array)    Array containing 'addresses':
+	 *      - id (int)         Address primary key.
+	 *      - nickname (string) Address label / nickname.
+	 *      - type (string)    Address type ('billing' or 'shipping').
+	 *      - is_default (int) 1 if default, 0 otherwise.
+	 *      - formatted (string) HTML formatted address for display.
+	 *      - raw (object)     Complete raw address object.
+	 *
+	 * @return void Sends JSON response.
 	 */
 	public function ajax_search_addresses() {
 		$current_user_id = $this->verify_request();
@@ -436,7 +519,7 @@ class SAB_Ajax {
 			$address_data['is_default'] = ! empty( $_POST['is_default'] ) ? 1 : 0;
 		}
 
-		$validation = SAB_Address::validate( $address_data );
+		$validation = SAB_Address::validate_address( $address_data );
 		if ( is_wp_error( $validation ) ) {
 			$errors_map = array();
 			foreach ( $validation->get_error_codes() as $code ) {

@@ -30,7 +30,7 @@ class SAB_Checkout {
 		// Contact Information at top of Classic Checkout
 		add_action( 'woocommerce_checkout_before_customer_details', array( $this, 'render_contact_information' ), 5 );
 		add_action( 'woocommerce_before_checkout_billing_form', array( $this, 'maybe_render_contact_information_fallback' ), 5 );
-		add_filter( 'woocommerce_form_field', array( $this, 'filter_billing_email_field' ), 10, 4 );
+		add_filter( 'woocommerce_form_field', array( $this, 'filter_woocommerce_form_field_billing_email' ), 10, 4 );
 
 		// Classic Checkout Hooks
 		add_action( 'woocommerce_before_checkout_billing_form', array( $this, 'render_billing_selector' ) );
@@ -136,7 +136,7 @@ class SAB_Checkout {
 	}
 
 	/**
-	 * Suppress duplicate billing email output inside standard billing fields wrapper.
+	 * Suppress duplicate billing email output inside standard billing fields wrapper (Point 19).
 	 *
 	 * @param string $field_html Field HTML.
 	 * @param string $key        Field key.
@@ -144,7 +144,7 @@ class SAB_Checkout {
 	 * @param mixed  $value      Field value.
 	 * @return string Filtered field HTML.
 	 */
-	public function filter_billing_email_field( $field_html, $key, $args, $value ) {
+	public function filter_woocommerce_form_field_billing_email( $field_html, $key, $args, $value ) {
 		if ( 'billing_email' === $key ) {
 			if ( ! empty( $this->rendering_contact_email ) ) {
 				return $field_html;
@@ -154,6 +154,19 @@ class SAB_Checkout {
 			}
 		}
 		return $field_html;
+	}
+
+	/**
+	 * Backward compatible alias for filter_woocommerce_form_field_billing_email (Point 19).
+	 *
+	 * @param string $field_html Field HTML.
+	 * @param string $key        Field key.
+	 * @param array  $args       Field arguments.
+	 * @param mixed  $value      Field value.
+	 * @return string Filtered field HTML.
+	 */
+	public function filter_billing_email_field( $field_html, $key, $args, $value ) {
+		return $this->filter_woocommerce_form_field_billing_email( $field_html, $key, $args, $value );
 	}
 
 	/**
@@ -229,12 +242,14 @@ class SAB_Checkout {
 		}
 
 		$address_type = 'billing';
-		$type         = $address_type;
 		$default      = SAB_Database::get_default_address( $user_id, 'billing' );
 		$default_id   = $default ? (int) $default->id : ( ! empty( $addresses ) ? (int) $addresses[0]->id : 0 );
 
-		$template_path = SAB_PLUGIN_DIR . 'public/views/checkout-selector.php';
-		include $template_path;
+		SAB_Template_Loader::load(
+			'checkout-selector.php',
+			compact( 'addresses', 'address_type', 'default_id', 'enable_checkout_save', 'can_add_address' ),
+			SAB_PLUGIN_DIR . 'public/views/'
+		);
 	}
 
 	/**
@@ -255,12 +270,14 @@ class SAB_Checkout {
 		}
 
 		$address_type = 'shipping';
-		$type         = $address_type;
 		$default      = SAB_Database::get_default_address( $user_id, 'shipping' );
 		$default_id   = $default ? (int) $default->id : ( ! empty( $addresses ) ? (int) $addresses[0]->id : 0 );
 
-		$template_path = SAB_PLUGIN_DIR . 'public/views/checkout-selector.php';
-		include $template_path;
+		SAB_Template_Loader::load(
+			'checkout-selector.php',
+			compact( 'addresses', 'address_type', 'default_id', 'enable_checkout_save', 'can_add_address' ),
+			SAB_PLUGIN_DIR . 'public/views/'
+		);
 	}
 
 	/**
@@ -362,6 +379,12 @@ class SAB_Checkout {
 			return;
 		}
 
+		// Verify checkout nonce: reject missing, empty, or invalid nonces (Issue 1)
+		$checkout_nonce = sanitize_text_field( wp_unslash( $_POST['woocommerce-process_checkout-nonce'] ?? ( $_POST['sab_checkout_nonce'] ?? ( $_POST['_wpnonce'] ?? '' ) ) ) );
+		if ( empty( $checkout_nonce ) || ( ! wp_verify_nonce( $checkout_nonce, 'woocommerce-process_checkout' ) && ! wp_verify_nonce( $checkout_nonce, 'sab_checkout_nonce' ) ) ) {
+			return;
+		}
+
 		$user_id = $order->get_customer_id();
 		if ( ! $user_id ) {
 			return;
@@ -392,7 +415,7 @@ class SAB_Checkout {
 				'postal_code'  => $order->get_billing_postcode(),
 			);
 
-			if ( SAB_Database::can_add_address( $user_id, 'billing' ) && ! is_wp_error( SAB_Address::validate( $billing_data ) ) ) {
+			if ( SAB_Database::can_add_address( $user_id, 'billing' ) && ! is_wp_error( SAB_Address::validate_address( $billing_data ) ) ) {
 				$new_billing_id = SAB_Database::add_address( $billing_data );
 				if ( $new_billing_id ) {
 					$order->update_meta_data( '_sab_billing_address_id', $new_billing_id );
@@ -427,7 +450,7 @@ class SAB_Checkout {
 				'postal_code'  => $order->get_shipping_postcode() ?: $order->get_billing_postcode(),
 			);
 
-			if ( SAB_Database::can_add_address( $user_id, 'shipping' ) && ! is_wp_error( SAB_Address::validate( $shipping_data ) ) ) {
+			if ( SAB_Database::can_add_address( $user_id, 'shipping' ) && ! is_wp_error( SAB_Address::validate_address( $shipping_data ) ) ) {
 				$new_shipping_id = SAB_Database::add_address( $shipping_data );
 				if ( $new_shipping_id ) {
 					$order->update_meta_data( '_sab_shipping_address_id', $new_shipping_id );

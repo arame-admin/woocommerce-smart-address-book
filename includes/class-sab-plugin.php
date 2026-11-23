@@ -21,35 +21,93 @@ class SAB_Plugin {
 	 *
 	 * @var SAB_Public|null
 	 */
-	public $public = null;
+	protected $public = null;
 
 	/**
 	 * Admin instance.
 	 *
 	 * @var SAB_Admin|null
 	 */
-	public $admin = null;
+	protected $admin = null;
 
 	/**
 	 * AJAX instance.
 	 *
 	 * @var SAB_Ajax|null
 	 */
-	public $ajax = null;
+	protected $ajax = null;
 
 	/**
 	 * Privacy instance.
 	 *
 	 * @var SAB_Privacy|null
 	 */
-	public $privacy = null;
+	protected $privacy = null;
 
 	/**
 	 * Import/Export instance.
 	 *
 	 * @var SAB_Import_Export|null
 	 */
-	public $import_export = null;
+	protected $import_export = null;
+
+	/**
+	 * Get public instance (Point 29).
+	 *
+	 * @return SAB_Public|null
+	 */
+	public function get_public() {
+		return $this->public;
+	}
+
+	/**
+	 * Get admin instance (Point 29).
+	 *
+	 * @return SAB_Admin|null
+	 */
+	public function get_admin() {
+		return $this->admin;
+	}
+
+	/**
+	 * Get ajax instance (Point 29).
+	 *
+	 * @return SAB_Ajax|null
+	 */
+	public function get_ajax() {
+		return $this->ajax;
+	}
+
+	/**
+	 * Get privacy instance (Point 29).
+	 *
+	 * @return SAB_Privacy|null
+	 */
+	public function get_privacy() {
+		return $this->privacy;
+	}
+
+	/**
+	 * Get import/export instance (Point 29).
+	 *
+	 * @return SAB_Import_Export|null
+	 */
+	public function get_import_export() {
+		return $this->import_export;
+	}
+
+	/**
+	 * Magic getter for backward compatibility (Point 29).
+	 *
+	 * @param string $name Property name.
+	 * @return mixed
+	 */
+	public function __get( $name ) {
+		if ( isset( $this->$name ) ) {
+			return $this->$name;
+		}
+		return null;
+	}
 
 	/**
 	 * Get singleton instance.
@@ -75,6 +133,9 @@ class SAB_Plugin {
 	 * Initialize components.
 	 */
 	private function init_components() {
+		// Run schema upgrade check via version option on boot (Point 3, 18)
+		SAB_Database::check_and_upgrade_schema();
+
 		$this->ajax          = new SAB_Ajax();
 		$this->privacy       = new SAB_Privacy();
 		$this->import_export = new SAB_Import_Export();
@@ -89,6 +150,10 @@ class SAB_Plugin {
 	 * Register general hooks and My Account endpoints.
 	 */
 	private function register_hooks() {
+		// Purge user addresses upon user deletion (Point 4)
+		add_action( 'delete_user', array( 'SAB_Database', 'on_delete_user' ) );
+		add_action( 'wp_delete_user', array( 'SAB_Database', 'on_delete_user' ) );
+
 		// Register My Account endpoint
 		add_action( 'init', array( $this, 'add_endpoints' ) );
 		add_filter( 'query_vars', array( $this, 'add_query_vars' ), 0 );

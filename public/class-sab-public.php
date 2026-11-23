@@ -49,8 +49,8 @@ class SAB_Public {
 			return;
 		}
 
-		// Public Stylesheet
-		$public_css_ver = defined( 'SAB_VERSION' ) ? SAB_VERSION . '.' . filemtime( SAB_PLUGIN_DIR . 'public/css/sab-public.css' ) : time();
+		// Public Stylesheet (Point 23)
+		$public_css_ver = ( defined( 'WP_DEBUG' ) && WP_DEBUG && file_exists( SAB_PLUGIN_DIR . 'public/css/sab-public.css' ) ) ? SAB_VERSION . '.' . filemtime( SAB_PLUGIN_DIR . 'public/css/sab-public.css' ) : SAB_VERSION;
 		wp_enqueue_style(
 			'sab-public',
 			SAB_PLUGIN_URL . 'public/css/sab-public.css',
@@ -60,11 +60,12 @@ class SAB_Public {
 
 		// My Account specific script
 		if ( $is_account ) {
+			$public_js_ver = ( defined( 'WP_DEBUG' ) && WP_DEBUG && file_exists( SAB_PLUGIN_DIR . 'public/js/sab-public.js' ) ) ? SAB_VERSION . '.' . filemtime( SAB_PLUGIN_DIR . 'public/js/sab-public.js' ) : SAB_VERSION;
 			wp_enqueue_script(
 				'sab-public',
 				SAB_PLUGIN_URL . 'public/js/sab-public.js',
 				array( 'jquery' ),
-				SAB_VERSION,
+				$public_js_ver,
 				true
 			);
 
@@ -246,8 +247,8 @@ class SAB_Public {
 
 			wp_localize_script( 'sab-checkout', 'sab_checkout_params', $checkout_data );
 
-			// Also register and localize sab-blocks-checkout for Checkout Blocks
-			$blocks_js_ver = defined( 'SAB_VERSION' ) ? SAB_VERSION . '.' . filemtime( SAB_PLUGIN_DIR . 'public/js/sab-blocks-checkout.js' ) : time();
+			// Also register and localize sab-blocks-checkout for Checkout Blocks (Point 23)
+			$blocks_js_ver = ( defined( 'WP_DEBUG' ) && WP_DEBUG && file_exists( SAB_PLUGIN_DIR . 'public/js/sab-blocks-checkout.js' ) ) ? SAB_VERSION . '.' . filemtime( SAB_PLUGIN_DIR . 'public/js/sab-blocks-checkout.js' ) : SAB_VERSION;
 			wp_enqueue_script(
 				'sab-blocks-checkout',
 				SAB_PLUGIN_URL . 'public/js/sab-blocks-checkout.js',

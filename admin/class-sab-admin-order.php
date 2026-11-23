@@ -35,8 +35,7 @@ class SAB_Admin_Order {
 		}
 
 		$address_type = 'billing';
-		$type         = $address_type;
-		include SAB_PLUGIN_DIR . 'admin/views/order-address-picker.php';
+		SAB_Template_Loader::load( 'order-address-picker.php', compact( 'order', 'addresses', 'address_type' ), SAB_PLUGIN_DIR . 'admin/views/' );
 	}
 
 	/**
@@ -56,8 +55,7 @@ class SAB_Admin_Order {
 		}
 
 		$address_type = 'shipping';
-		$type         = $address_type;
-		include SAB_PLUGIN_DIR . 'admin/views/order-address-picker.php';
+		SAB_Template_Loader::load( 'order-address-picker.php', compact( 'order', 'addresses', 'address_type' ), SAB_PLUGIN_DIR . 'admin/views/' );
 	}
 }
 

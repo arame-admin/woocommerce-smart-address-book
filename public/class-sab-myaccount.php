@@ -48,8 +48,11 @@ class SAB_MyAccount {
 		$billing_addresses  = $enable_billing ? SAB_Database::get_addresses_sorted( $user_id, 'billing' ) : array();
 		$shipping_addresses = $enable_shipping ? SAB_Database::get_addresses_sorted( $user_id, 'shipping' ) : array();
 
-		$template_path = $this->locate_template( 'address-book.php' );
-		include $template_path;
+		SAB_Template_Loader::load(
+			'address-book.php',
+			compact( 'billing_addresses', 'shipping_addresses', 'enable_billing', 'enable_shipping', 'user_id' ),
+			SAB_PLUGIN_DIR . 'public/views/'
+		);
 	}
 
 	/**
@@ -91,8 +94,11 @@ class SAB_MyAccount {
 			}
 		}
 
-		$template_path = $this->locate_template( 'address-form.php' );
-		include $template_path;
+		SAB_Template_Loader::load(
+			'address-form.php',
+			compact( 'address', 'action', 'user_id' ),
+			SAB_PLUGIN_DIR . 'public/views/'
+		);
 	}
 
 	/**
@@ -175,7 +181,7 @@ class SAB_MyAccount {
 		$sanitized            = SAB_Address::sanitize( $_POST );
 		$sanitized['user_id'] = $user_id;
 
-		$validation = SAB_Address::validate( $sanitized );
+		$validation = SAB_Address::validate_address( $sanitized );
 		if ( is_wp_error( $validation ) ) {
 			foreach ( $validation->get_error_messages() as $err ) {
 				wc_add_notice( $err, 'error' );
@@ -206,26 +212,13 @@ class SAB_MyAccount {
 	}
 
 	/**
-	 * Helper: Locate template supporting theme overrides.
+	 * Helper: Locate template supporting theme overrides (delegates to SAB_Template_Loader).
 	 *
 	 * @param string $template_name Template file name.
 	 * @return string File path.
 	 */
 	public function locate_template( $template_name ) {
-		// Look in theme: /woocommerce/smart-address-book/$template_name
-		$theme_path = locate_template(
-			array(
-				'woocommerce/smart-address-book/' . $template_name,
-				'woocommerce/' . $template_name,
-			)
-		);
-
-		if ( $theme_path ) {
-			return $theme_path;
-		}
-
-		// Fallback to plugin views
-		return SAB_PLUGIN_DIR . 'public/views/' . $template_name;
+		return SAB_Template_Loader::locate( $template_name, SAB_PLUGIN_DIR . 'public/views/' );
 	}
 }
 

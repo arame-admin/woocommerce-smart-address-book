@@ -21,6 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Plugin Constants
 define( 'SAB_VERSION', '1.0.0' );
+define( 'SAB_DB_VERSION', '1.1.0' );
 define( 'SAB_PLUGIN_FILE', __FILE__ );
 define( 'SAB_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SAB_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -81,17 +82,19 @@ function sab_get_address_limit( $address_type = '' ) {
 	 * @param string $address_type Address type ('billing', 'shipping', or empty for general).
 	 * @param bool   $is_pro       Whether Pro is active.
 	 */
+	$limit = apply_filters( 'sab_address_limit', $limit, $address_type, sab_is_pro_active() );
 	return (int) apply_filters( 'sab_get_address_limit', $limit, $address_type, sab_is_pro_active() );
 }
 
 /**
- * Declare High-Performance Order Storage (HPOS) Compatibility
+ * Declare High-Performance Order Storage (HPOS) & Block Checkout Compatibility
  */
 add_action(
 	'before_woocommerce_init',
 	function () {
 		if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
 			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', __FILE__, true );
 		}
 	}
 );
@@ -99,6 +102,9 @@ add_action(
 /**
  * Include Core Dependency Classes
  */
+require_once SAB_PLUGIN_DIR . 'includes/interface-sab-address-repository.php';
+require_once SAB_PLUGIN_DIR . 'includes/class-sab-address-repository.php';
+require_once SAB_PLUGIN_DIR . 'includes/class-sab-template-loader.php';
 require_once SAB_PLUGIN_DIR . 'includes/class-sab-activator.php';
 require_once SAB_PLUGIN_DIR . 'includes/class-sab-deactivator.php';
 require_once SAB_PLUGIN_DIR . 'includes/class-sab-database.php';

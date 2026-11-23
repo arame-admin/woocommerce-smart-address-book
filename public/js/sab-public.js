@@ -341,9 +341,10 @@
 						var rowsHtml = '';
 						$.each(sabParsedImportAddresses, function(index, importAddress) {
 							var isBilling = (importAddress.address_type === 'billing');
+							var typeLabel = escapeHtml(importAddress.address_type_label || (isBilling ? 'Billing' : 'Shipping'));
 							var typeBadge = isBilling
-								? '<span class="sab-badge sab-badge-billing">' + ( (importAddress.address_type_label) ? importAddress.address_type_label : 'Billing' ) + '</span>'
-								: '<span class="sab-badge sab-badge-shipping">' + ( (importAddress.address_type_label) ? importAddress.address_type_label : 'Shipping' ) + '</span>';
+								? '<span class="sab-badge sab-badge-billing">' + typeLabel + '</span>'
+								: '<span class="sab-badge sab-badge-shipping">' + typeLabel + '</span>';
 							var defaultBadge = (parseInt(importAddress.is_default, 10) === 1)
 								? ' <span class="sab-badge sab-default-badge" style="font-size:10px; padding:2px 5px; margin-left:4px;">Default</span>'
 								: '';
@@ -373,9 +374,12 @@
 
 						$('#sab-import-table-body').html(rowsHtml);
 
-						// Handle skipped rows notice
+						// Handle skipped rows notice with XSS prevention (Point 15)
 						if (response.data.skipped_count > 0 && response.data.skipped && response.data.skipped.length) {
-							$('#sab-import-skipped-notice').html('<strong>Notice:</strong> ' + response.data.skipped_count + ' invalid row(s) in CSV were skipped:<br/>' + response.data.skipped.join('<br/>')).show();
+							var escapedSkipped = response.data.skipped.map(function(item) {
+								return escapeHtml(item);
+							}).join('<br/>');
+							$('#sab-import-skipped-notice').html('<strong>Notice:</strong> ' + parseInt(response.data.skipped_count, 10) + ' invalid row(s) in CSV were skipped:<br/>' + escapedSkipped).show();
 						} else {
 							$('#sab-import-skipped-notice').hide().empty();
 						}
@@ -497,9 +501,13 @@
 
 					if (response.success && response.data) {
 						var importResult = response.data;
-						var msg = importResult.message || ( 'Import completed: ' + importResult.imported + ' imported, ' + importResult.skipped + ' skipped.' );
+						var baseMsg = importResult.message ? escapeHtml(importResult.message) : ( 'Import completed: ' + parseInt(importResult.imported, 10) + ' imported, ' + parseInt(importResult.skipped, 10) + ' skipped.' );
+						var msg = baseMsg;
 						if (importResult.errors && importResult.errors.length) {
-							msg += '<br/><small>' + importResult.errors.join('<br/>') + '</small>';
+							var escapedErrors = $.map(importResult.errors, function(err) {
+								return escapeHtml(err);
+							});
+							msg += '<br/><small>' + escapedErrors.join('<br/>') + '</small>';
 						}
 
 						// Close modal

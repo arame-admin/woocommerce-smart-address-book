@@ -17,7 +17,7 @@ class SAB_Activator {
 		self::set_default_options();
 
 		// Set DB version
-		update_option( 'sab_db_version', SAB_VERSION );
+		update_option( 'sab_db_version', defined( 'SAB_DB_VERSION' ) ? SAB_DB_VERSION : SAB_VERSION );
 
 		// Flush rewrite rules for My Account endpoint
 		add_rewrite_endpoint( 'sab-address-book', EP_ROOT | EP_PAGES );
@@ -36,7 +36,7 @@ class SAB_Activator {
 		$sql = "CREATE TABLE {$table_name} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			user_id bigint(20) unsigned NOT NULL,
-			address_type varchar(10) NOT NULL DEFAULT 'shipping',
+			address_type varchar(8) NOT NULL DEFAULT 'shipping',
 			nickname varchar(100) DEFAULT NULL,
 			first_name varchar(100) DEFAULT NULL,
 			last_name varchar(100) DEFAULT NULL,
@@ -47,7 +47,7 @@ class SAB_Activator {
 			address_2 varchar(255) DEFAULT NULL,
 			city varchar(100) DEFAULT NULL,
 			state varchar(100) DEFAULT NULL,
-			country varchar(10) DEFAULT NULL,
+			country char(2) DEFAULT NULL,
 			postal_code varchar(20) DEFAULT NULL,
 			is_default tinyint(1) NOT NULL DEFAULT 0,
 			last_used_at datetime DEFAULT NULL,
@@ -55,7 +55,6 @@ class SAB_Activator {
 			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
 			KEY user_id (user_id),
-			KEY user_type (user_id, address_type),
 			KEY is_default (user_id, address_type, is_default),
 			KEY last_used (user_id, address_type, last_used_at)
 		) {$charset_collate};";

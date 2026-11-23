@@ -10,6 +10,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 class SAB_Address {
 
 	/**
+	 * Address types constants (Point 2).
+	 */
+	const TYPE_BILLING  = 'billing';
+	const TYPE_SHIPPING = 'shipping';
+
+	/**
+	 * Normalize raw input data, standardizing postcode to postal_code early (Point 7).
+	 *
+	 * @param array $data Raw input array.
+	 * @return array Normalized array with postal_code populated and postcode unset.
+	 */
+	public static function normalize_input( array $data ) {
+		if ( isset( $data['postcode'] ) && ! isset( $data['postal_code'] ) ) {
+			$data['postal_code'] = $data['postcode'];
+		} elseif ( isset( $data['postcode'] ) && empty( $data['postal_code'] ) ) {
+			$data['postal_code'] = $data['postcode'];
+		}
+		unset( $data['postcode'] );
+		return $data;
+	}
+
+	/**
 	 * Get definitions for all address fields.
 	 *
 	 * @return array
@@ -117,12 +139,13 @@ class SAB_Address {
 
 	/**
 	 * FR-11 Address Validation:
-	 * Postal Code, State, Country, Phone Number, Required Fields.
+	 * Postal Code, State, Country, Phone Number, Required Fields (Point 20).
 	 *
 	 * @param array $data Raw address input.
 	 * @return true|WP_Error
 	 */
-	public static function validate( $data ) {
+	public static function validate_address( $data ) {
+		$data   = self::normalize_input( (array) $data );
 		$errors = new WP_Error();
 
 		$validate_required = 'yes' === get_option( 'sab_validate_required_fields', 'yes' );
@@ -135,7 +158,7 @@ class SAB_Address {
 			$field_configs   = self::get_fields();
 
 			foreach ( $required_fields as $field ) {
-				$val = $data[ $field ] ?? ( 'postal_code' === $field ? ( $data['postcode'] ?? '' ) : '' );
+				$val = $data[ $field ] ?? '';
 				if ( '' === trim( (string) $val ) ) {
 					$label = $field_configs[ $field ]['label'] ?? ucfirst( str_replace( '_', ' ', $field ) );
 					/* translators: %s: Field label */
@@ -169,7 +192,7 @@ class SAB_Address {
 		}
 
 		// 4. Postal Code validation
-		$postcode = sanitize_text_field( $data['postal_code'] ?? ( $data['postcode'] ?? '' ) );
+		$postcode = sanitize_text_field( $data['postal_code'] ?? '' );
 		if ( $validate_postcode && ! empty( $postcode ) && ! empty( $country ) && function_exists( 'WC' ) ) {
 			$valid_postcode = WC_Validation::is_postcode( $postcode, $country );
 			if ( ! $valid_postcode ) {
@@ -213,12 +236,23 @@ class SAB_Address {
 	}
 
 	/**
+	 * Backward-compatible wrapper for validate_address (Point 20).
+	 *
+	 * @param array $data Raw address input.
+	 * @return true|WP_Error
+	 */
+	public static function validate( $data ) {
+		return self::validate_address( $data );
+	}
+
+	/**
 	 * Sanitize raw address input.
 	 *
 	 * @param array $data Raw input.
 	 * @return array
 	 */
 	public static function sanitize( $data ) {
+		$data      = self::normalize_input( (array) $data );
 		$sanitized = array();
 
 		$text_fields = array(
@@ -233,7 +267,6 @@ class SAB_Address {
 			'state',
 			'country',
 			'postal_code',
-			'postcode',
 		);
 
 		foreach ( $text_fields as $field ) {
@@ -242,14 +275,19 @@ class SAB_Address {
 			}
 		}
 
+		// ISO 3166-1 alpha-2 standard 2-letter uppercase country code (Point 1)
+		if ( isset( $sanitized['country'] ) ) {
+			$sanitized['country'] = strtoupper( substr( trim( $sanitized['country'] ), 0, 2 ) );
+		}
+
 		if ( isset( $data['email'] ) ) {
 			$sanitized['email'] = sanitize_email( wp_unslash( $data['email'] ) );
 		}
 
 		if ( isset( $data['address_type'] ) ) {
-			$sanitized['address_type'] = in_array( $data['address_type'], array( 'billing', 'shipping' ), true )
+			$sanitized['address_type'] = in_array( $data['address_type'], array( self::TYPE_BILLING, self::TYPE_SHIPPING ), true )
 				? $data['address_type']
-				: 'shipping';
+				: self::TYPE_SHIPPING;
 		}
 
 		if ( isset( $data['is_default'] ) ) {
@@ -258,11 +296,6 @@ class SAB_Address {
 
 		if ( isset( $data['user_id'] ) ) {
 			$sanitized['user_id'] = absint( $data['user_id'] );
-		}
-
-		// Ensure postal_code is set
-		if ( empty( $sanitized['postal_code'] ) && ! empty( $sanitized['postcode'] ) ) {
-			$sanitized['postal_code'] = $sanitized['postcode'];
 		}
 
 		// Normalize state code if full name was passed

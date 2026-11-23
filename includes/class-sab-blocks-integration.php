@@ -43,7 +43,8 @@ class SAB_Blocks_Integration implements IntegrationInterface {
 			SAB_VERSION
 		);
 
-		$script_version = defined( 'SAB_VERSION' ) ? SAB_VERSION . '.' . filemtime( SAB_PLUGIN_DIR . 'public/js/sab-blocks-checkout.js' ) : time();
+		// Asset version with debug cache busting (Point 23)
+		$script_version = ( defined( 'WP_DEBUG' ) && WP_DEBUG && file_exists( SAB_PLUGIN_DIR . 'public/js/sab-blocks-checkout.js' ) ) ? SAB_VERSION . '.' . filemtime( SAB_PLUGIN_DIR . 'public/js/sab-blocks-checkout.js' ) : SAB_VERSION;
 
 		wp_register_script(
 			'sab-blocks-checkout',

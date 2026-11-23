@@ -84,7 +84,14 @@ class SAB_Import_Export {
 		foreach ( $addresses as $address ) {
 			$row = array();
 			foreach ( $headers as $col ) {
-				$row[] = $address->$col ?? '';
+				$val         = (string) ( $address->$col ?? '' );
+				$trimmed_val = ltrim( $val, " \t\n\r\0\x0B" );
+				// Mitigate CSV formula injection in spreadsheet software (Point 16 & Issue 4)
+				// Prevent bypasses using leading whitespace or control characters before formula triggers
+				if ( '' !== $trimmed_val && in_array( $trimmed_val[0], array( '=', '+', '-', '@', "\t", "\r", '%' ), true ) ) {
+					$val = "'" . $val;
+				}
+				$row[] = $val;
 			}
 			fputcsv( $output, $row );
 		}
@@ -141,8 +148,8 @@ class SAB_Import_Export {
 		}
 
 		$user_id = get_current_user_id();
-		// Pass raw temp file path without wp_unslash to preserve Windows directory slashes
-		$result  = $this->import_csv( $user_id, $tmp_name );
+		// Pass raw temp file path without wp_unslash to preserve Windows directory slashes (Point 21)
+		$result  = $this->process_csv_import_file( $user_id, $tmp_name );
 		wp_send_json_success( $result );
 	}
 
@@ -280,7 +287,7 @@ class SAB_Import_Export {
 			$sanitized                 = SAB_Address::sanitize( $addr_data );
 			$sanitized['user_id']      = $user_id;
 			$sanitized['address_type'] = $address_type;
-			$validation                = SAB_Address::validate( $sanitized );
+			$validation                = SAB_Address::validate_address( $sanitized );
 
 			if ( is_wp_error( $validation ) ) {
 				$errors[] = sprintf( __( '%s skipped: %s', 'smart-address-book' ), $nickname, $validation->get_error_message() );
@@ -473,12 +480,13 @@ class SAB_Import_Export {
 
 		$headers = array();
 		foreach ( $raw_headers as $idx => $hdr ) {
-			$clean = strtolower( trim( (string) $hdr ) );
-			$clean = preg_replace( '/\s+/', ' ', $clean );
-			if ( isset( $header_aliases[ $clean ] ) ) {
-				$clean = $header_aliases[ $clean ];
+			// Normalize header aliases (Point 11)
+			$normalized_header = strtolower( trim( (string) $hdr ) );
+			$normalized_header = preg_replace( '/\s+/', ' ', $normalized_header );
+			if ( isset( $header_aliases[ $normalized_header ] ) ) {
+				$normalized_header = $header_aliases[ $normalized_header ];
 			}
-			$headers[ $idx ] = $clean;
+			$headers[ $idx ] = $normalized_header;
 		}
 
 		$valid_addresses = array();
@@ -559,7 +567,7 @@ class SAB_Import_Export {
 
 			$sanitized            = SAB_Address::sanitize( $data );
 			$sanitized['user_id'] = $user_id;
-			$validation           = SAB_Address::validate( $sanitized );
+			$validation           = SAB_Address::validate_address( $sanitized );
 
 			if ( is_wp_error( $validation ) ) {
 				/* translators: 1: Row number, 2: Error message */
@@ -584,13 +592,13 @@ class SAB_Import_Export {
 	}
 
 	/**
-	 * Parse and import addresses directly from a CSV file.
+	 * Parse and import addresses directly from a CSV file (Point 21).
 	 *
 	 * @param int    $user_id User ID.
 	 * @param string $file_path Path to uploaded CSV file.
 	 * @return array Results summary.
 	 */
-	public function import_csv( $user_id, $file_path ) {
+	public function process_csv_import_file( $user_id, $file_path ) {
 		$parsed = $this->parse_csv_file( $file_path, $user_id );
 		if ( ! $parsed['success'] ) {
 			return array(
@@ -713,6 +721,17 @@ class SAB_Import_Export {
 			'message'  => $summary_message,
 			'errors'   => $errors,
 		);
+	}
+
+	/**
+	 * Backward compatibility alias for process_csv_import_file (Point 21).
+	 *
+	 * @param int    $user_id   User ID.
+	 * @param string $file_path File path.
+	 * @return array
+	 */
+	public function import_csv( $user_id, $file_path ) {
+		return $this->process_csv_import_file( $user_id, $file_path );
 	}
 }
 
