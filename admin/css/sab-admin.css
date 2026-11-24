@@ -43,6 +43,15 @@
 	vertical-align: text-top;
 }
 
+@keyframes sabHighlightRow {
+	0% { background-color: #e7f7ed; }
+	100% { background-color: transparent; }
+}
+
+.sab-row-highlight {
+	animation: sabHighlightRow 2s ease-out;
+}
+
 /* Modal */
 .sab-modal {
 	position: fixed;
@@ -76,6 +85,13 @@
 	display: flex;
 	flex-direction: column;
 	z-index: 2;
+}
+
+.sab-modal-form-wrap {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	overflow: hidden;
 }
 
 .sab-modal-header {

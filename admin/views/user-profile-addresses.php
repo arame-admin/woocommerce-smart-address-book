@@ -38,11 +38,11 @@ $countries = WC()->countries ? WC()->countries->get_allowed_countries() : array(
 					$is_default = ( 1 === (int) $address->is_default );
 					$nickname   = ! empty( $address->nickname ) ? $address->nickname : '—';
 					?>
-					<tr id="sab-admin-row-<?php echo esc_attr( $address->id ); ?>" data-id="<?php echo esc_attr( $address->id ); ?>">
+					<tr id="sab-admin-row-<?php echo esc_attr( $address->id ); ?>" data-id="<?php echo esc_attr( $address->id ); ?>" data-type="<?php echo esc_attr( $address->address_type ); ?>">
 						<td><strong><?php echo esc_html( $nickname ); ?></strong></td>
 						<td><span class="sab-type-tag sab-type-<?php echo esc_attr( $address->address_type ); ?>"><?php echo esc_html( ucfirst( $address->address_type ) ); ?></span></td>
-						<td><?php echo wp_kses_post( SAB_Address::format_address( $address ) ); ?></td>
-						<td>
+						<td class="sab-admin-address-details"><?php echo wp_kses_post( SAB_Address::format_address( $address ) ); ?></td>
+						<td class="sab-admin-default-cell">
 							<?php if ( $is_default ) : ?>
 								<span class="dashicons dashicons-star-filled sab-star-icon"></span> <strong><?php esc_html_e( 'Default', 'smart-address-book' ); ?></strong>
 							<?php else : ?>
@@ -80,7 +80,7 @@ $countries = WC()->countries ? WC()->countries->get_allowed_countries() : array(
 				<button type="button" class="sab-modal-close-btn">&times;</button>
 			</div>
 
-			<form id="sab-admin-modal-form">
+			<div id="sab-admin-modal-form" class="sab-modal-form-wrap">
 				<input type="hidden" name="address_id" id="sab_modal_address_id" value="" />
 				<input type="hidden" name="user_id" id="sab_modal_user_id" value="<?php echo esc_attr( $user->ID ); ?>" />
 
@@ -149,7 +149,7 @@ $countries = WC()->countries ? WC()->countries->get_allowed_countries() : array(
 							<input type="text" name="city" id="sab_modal_city" class="widefat" required />
 						</div>
 
-						<div class="sab-form-col">
+						<div class="sab-form-col" id="sab_modal_state_wrapper">
 							<label for="sab_modal_state"><strong><?php esc_html_e( 'State / Province', 'smart-address-book' ); ?></strong></label>
 							<input type="text" name="state" id="sab_modal_state" class="widefat" />
 						</div>
@@ -169,14 +169,14 @@ $countries = WC()->countries ? WC()->countries->get_allowed_countries() : array(
 				</div>
 
 				<div class="sab-modal-footer">
-					<button type="submit" class="button button-primary" id="sab-modal-save-btn">
+					<button type="button" class="button button-primary" id="sab-modal-save-btn">
 						<?php esc_html_e( 'Save Address', 'smart-address-book' ); ?>
 					</button>
 					<button type="button" class="button sab-modal-close-btn">
 						<?php esc_html_e( 'Cancel', 'smart-address-book' ); ?>
 					</button>
 				</div>
-			</form>
+			</div>
 		</div>
 	</div>
 

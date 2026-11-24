@@ -101,6 +101,7 @@ class SAB_Admin {
 			array(
 				'ajax_url' => admin_url( 'admin-ajax.php' ),
 				'nonce'    => wp_create_nonce( 'sab_admin_nonce' ),
+				'states'   => ( function_exists( 'WC' ) && WC()->countries ) ? WC()->countries->get_states() : array(),
 				'i18n'     => array(
 					'confirm_delete' => __( 'Are you sure you want to delete this address?', 'smart-address-book' ),
 					'deleting'       => __( 'Deleting...', 'smart-address-book' ),
@@ -108,6 +109,12 @@ class SAB_Admin {
 					'success'        => __( 'Action completed successfully.', 'smart-address-book' ),
 					'error'          => __( 'An error occurred.', 'smart-address-book' ),
 					'default'        => __( 'Default', 'smart-address-book' ),
+					'set_default'    => __( 'Set Default', 'smart-address-book' ),
+					'edit'           => __( 'Edit', 'smart-address-book' ),
+					'delete'         => __( 'Delete', 'smart-address-book' ),
+					'save_address'   => __( 'Save Address', 'smart-address-book' ),
+					'no_addresses'   => __( 'No addresses saved for this customer yet.', 'smart-address-book' ),
+					'select_state'   => __( 'Select state / province...', 'smart-address-book' ),
 				),
 			)
 		);
